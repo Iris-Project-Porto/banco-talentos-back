@@ -16,6 +16,10 @@ spring:
     enabled: true
     locations: classpath:db/migration
     validate-on-migrate: false
+  brevo:
+    api-key: ${BREVO_API_KEY}
+    from-email: ${BREVO_FROM_EMAIL}
+    from-name: ${BREVO_NAME}
 
 server:
   port: ${PORT:8080}
