@@ -27,6 +27,7 @@ public class User {
     @Column(nullable = false)
     private String password;
 
+    @Builder.Default
     @Column(nullable = false)
     @Enumerated(EnumType.STRING)
     private Role role = Role.RECURSO;

@@ -2,6 +2,7 @@ package com.vilt.talentos.controller;
 
 import com.vilt.talentos.dto.AuthRequest;
 import com.vilt.talentos.dto.AuthResponse;
+import com.vilt.talentos.dto.RegisterRequest;
 import com.vilt.talentos.service.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -23,6 +24,12 @@ public class AuthController {
     @Operation(summary = "Login", description = "Retorna o token JWT. Use-o no botão Authorize acima (Bearer <token>).")
     public AuthResponse login(@Valid @RequestBody AuthRequest req) {
         return authService.login(req);
+    }
+
+    @PostMapping("/register")
+    @Operation(summary = "Registro de usuário (RECURSO)", description = "Criação de novo usuário do tipo RECURSO.")
+    public void register(@RequestBody @Valid RegisterRequest request) {
+        authService.register(request);
     }
 
     @GetMapping("/hash")

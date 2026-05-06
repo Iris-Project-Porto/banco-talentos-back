@@ -19,6 +19,7 @@
   <properties>
     <java.version>21</java.version>
     <jjwt.version>0.12.5</jjwt.version>
+    <lombok.version>1.18.46</lombok.version>
   </properties>
 
   <dependencies>
@@ -72,6 +73,11 @@
       <groupId>org.springdoc</groupId>
       <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
       <version>2.5.0</version>
+    </dependency>
+    <dependency>
+      <groupId>me.paulschwarz</groupId>
+      <artifactId>spring-dotenv</artifactId>
+      <version>4.0.0</version>
     </dependency>
     <dependency>
       <groupId>org.projectlombok</groupId>
