@@ -1,32 +1,37 @@
-package com.vilt.talentos.controller;
-
-import com.vilt.talentos.dto.AuthRequest;
-import com.vilt.talentos.dto.AuthResponse;
-import com.vilt.talentos.service.AuthService;
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.web.bind.annotation.*;
-
-@RestController
-@RequestMapping("/api/auth")
+@Service
 @RequiredArgsConstructor
-@Tag(name = "Auth", description = "Autenticação — obtém o JWT para usar nas demais rotas")
-public class AuthController {
+@Slf4j
+public class AuthService {
 
-    private final AuthService authService;
+    private final UserRepository userRepo;
     private final PasswordEncoder passwordEncoder;
+    private final JwtService jwtService;
 
-    @PostMapping("/login")
-    @Operation(summary = "Login", description = "Retorna o token JWT. Use-o no botão Authorize acima (Bearer <token>).")
-    public AuthResponse login(@Valid @RequestBody AuthRequest req) {
-        return authService.login(req);
-    }
+    public AuthResponse login(AuthRequest req) {
+        log.info("Tentando login para: {}", req.email());
+        
+        var user = userRepo.findByEmail(req.email())
+                .orElseThrow(() -> {
+                    log.warn("Usuário não encontrado: {}", req.email());
+                    return new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials");
+                });
 
-    @GetMapping("/hash")
-    public String hash() {
-        return passwordEncoder.encode("senha");
+        log.info("Usuário encontrado: {} | role: {}", user.getEmail(), user.getRole());
+        log.info("Senha recebida: {} | Hash no banco: {}", req.password(), user.getPassword());
+        
+        boolean matches = passwordEncoder.matches(req.password(), user.getPassword());
+        log.info("Senha confere: {}", matches);
+        
+        if (!matches) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials");
+        }
+
+        String token = jwtService.generate(user.getId().toString(), Map.of(
+                "name", user.getName(),
+                "email", user.getEmail(),
+                "role", user.getRole().name()
+        ));
+
+        return new AuthResponse(token, user.getName(), user.getEmail(), user.getRole().name());
     }
 }
