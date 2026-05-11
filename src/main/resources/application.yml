@@ -25,6 +25,7 @@ server:
   port: ${PORT:8080}
 
 app:
+  url: ${APP_URL:http://localhost:3000}
   jwt:
     secret: ${JWT_SECRET:super-secret-key-at-least-32-chars-long-for-hs256}
     expiration-ms: 86400000
