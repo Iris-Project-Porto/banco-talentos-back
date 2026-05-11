@@ -2,6 +2,8 @@ package com.vilt.talentos.service;
 
 import com.vilt.talentos.dto.AuthRequest;
 import com.vilt.talentos.dto.AuthResponse;
+import com.vilt.talentos.dto.RegisterRequest;
+import com.vilt.talentos.entity.User;
 import com.vilt.talentos.repository.UserRepository;
 import com.vilt.talentos.security.JwtService;
 import lombok.RequiredArgsConstructor;
@@ -48,5 +50,24 @@ public class AuthService {
         ));
 
         return new AuthResponse(token, user.getName(), user.getEmail(), user.getRole().name());
+    }
+
+    public void register(RegisterRequest request){
+        if (!request.email().endsWith("@vilt-group.com")) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "E-mail deve ser, obrigatoriamente, do domínio 'vilt-group.com'.");
+        }
+
+        if (userRepo.findByEmail(request.email()).isPresent()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "E-mail já em uso.");
+        }
+
+        User user = User.builder()
+                .name(request.name())
+                .email(request.email())
+                .password(passwordEncoder.encode(request.password()))
+                .role(User.Role.RECURSO)
+                .build();
+
+        userRepo.save(user);
     }
 }
