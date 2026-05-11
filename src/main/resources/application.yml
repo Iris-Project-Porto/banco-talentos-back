@@ -16,11 +16,16 @@ spring:
     enabled: true
     locations: classpath:db/migration
     validate-on-migrate: false
+  brevo:
+    api-key: ${BREVO_API_KEY}
+    from-email: ${BREVO_FROM_EMAIL}
+    from-name: ${BREVO_NAME}
 
 server:
   port: ${PORT:8080}
 
 app:
+  url: ${APP_URL:http://localhost:3000}
   jwt:
     secret: ${JWT_SECRET:super-secret-key-at-least-32-chars-long-for-hs256}
     expiration-ms: 86400000

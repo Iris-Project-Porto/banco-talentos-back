@@ -2,13 +2,20 @@ package com.vilt.talentos.controller;
 
 import com.vilt.talentos.dto.AdminUpdateRequest;
 import com.vilt.talentos.entity.Profile;
+import com.vilt.talentos.entity.User;
+import com.vilt.talentos.repository.UserRepository;
 import com.vilt.talentos.service.ProfileService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -19,9 +26,11 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 @Tag(name = "Admin", description = "Operações administrativas — requer role ADMIN")
 @SecurityRequirement(name = "bearerAuth")
+@PreAuthorize("hasAuthority('ADMIN')")
 public class AdminController {
 
     private final ProfileService profileService;
+    private final UserRepository userRepo;
 
     @GetMapping("/profiles")
     @Operation(summary = "Listar todos os perfis")
@@ -47,8 +56,7 @@ public class AdminController {
         return profileService.getAll().stream()
                 .filter(p -> p.getId().equals(id))
                 .findFirst()
-                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
-                        org.springframework.http.HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
     }
 
     @PatchMapping("/profiles/{id}")
@@ -87,5 +95,41 @@ public class AdminController {
                 .toList(),
             "nivelCount", nivelCount
         );
+    }
+
+    @GetMapping("/users/pending")
+    @Operation(summary = "Listar usuários pendentes", description = "Retorna todos os usuários que aguardam aprovação (Status PENDING).")
+    public List<User> getPendingUsers() {
+        return userRepo.findAllByRoleAndStatus(User.Role.ADMIN, User.Status.PENDING);
+    }
+
+    @PostMapping("/users/{id}/approve")
+    @Operation(summary = "Aprovar usuário", description = "Altera o status de um usuário para ACTIVE e registra quem aprovou.")
+    public void approveUser(@PathVariable UUID id) {
+        User user = userRepo.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuário não encontrado."));
+
+        if (user.getStatus() != User.Status.PENDING) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Usuário não está pendente de aprovação.");
+        }
+
+        String adminIdStr = (String) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        UUID adminId = UUID.fromString(adminIdStr);
+
+        user.setStatus(User.Status.ACTIVE);
+        user.setApprovedBy(adminId);
+        user.setApprovedAt(Instant.now());
+        
+        userRepo.save(user);
+    }
+
+    @PostMapping("/users/{id}/reject")
+    @Operation(summary = "Rejeitar usuário", description = "Altera o status de um usuário para INACTIVE.")
+    public void rejectUser(@PathVariable UUID id) {
+        User user = userRepo.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuário não encontrado."));
+
+        user.setStatus(User.Status.INACTIVE);
+        userRepo.save(user);
     }
 }

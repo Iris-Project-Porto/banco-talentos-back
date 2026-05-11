@@ -1,9 +1,10 @@
 package com.vilt.talentos.service;
 
-import com.vilt.talentos.dto.AuthRequest;
-import com.vilt.talentos.dto.AuthResponse;
+import com.vilt.talentos.dto.*;
+import com.vilt.talentos.entity.User;
 import com.vilt.talentos.repository.UserRepository;
 import com.vilt.talentos.security.JwtService;
+import com.vilt.talentos.config.AppProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -11,7 +12,12 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.List;
 import java.util.Map;
+import java.util.Random;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -21,24 +27,29 @@ public class AuthService {
     private final UserRepository userRepo;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final EmailService emailService;
+    private final AppProperties appProperties;
 
     public AuthResponse login(AuthRequest req) {
         log.info("Tentando login para: {}", req.email());
 
         var user = userRepo.findByEmail(req.email())
-                .orElseThrow(() -> {
-                    log.warn("Usuário não encontrado: {}", req.email());
-                    return new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials");
-                });
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Credenciais inválidas."));
 
-        log.info("Usuário encontrado: {} | role: {}", user.getEmail(), user.getRole());
-        log.info("Hash no banco: {}", user.getPassword());
+        if (!user.isEmailVerified()) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "E-mail não verificado. Verifique seu e-mail para continuar.");
+        }
 
-        boolean matches = passwordEncoder.matches(req.password(), user.getPassword());
-        log.info("Senha confere: {}", matches);
+        if (user.getStatus() == User.Status.PENDING) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Usuário pendente de aprovação por um administrador.");
+        }
 
-        if (!matches) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials");
+        if (user.getStatus() == User.Status.INACTIVE) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Usuário inativo.");
+        }
+
+        if (!passwordEncoder.matches(req.password(), user.getPassword())) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Credenciais inválidas.");
         }
 
         String token = jwtService.generate(user.getId().toString(), Map.of(
@@ -48,5 +59,101 @@ public class AuthService {
         ));
 
         return new AuthResponse(token, user.getName(), user.getEmail(), user.getRole().name());
+    }
+
+    public void register(RegisterRequest request){
+        if (!request.email().endsWith("@vilt-group.com")) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "E-mail deve ser do domínio 'vilt-group.com'.");
+        }
+
+        if (userRepo.findByEmail(request.email()).isPresent()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "E-mail já em uso.");
+        }
+
+        String verificationCode = String.format("%06d", new Random().nextInt(1000000));
+
+        User user = User.builder()
+                .name(request.name())
+                .email(request.email())
+                .password(passwordEncoder.encode(request.password()))
+                .role(request.role())
+                .status(request.role() == User.Role.ADMIN ? User.Status.PENDING : User.Status.ACTIVE)
+                .verificationCode(verificationCode)
+                .emailVerified(false)
+                .build();
+
+        userRepo.save(user);
+        
+        emailService.sendTemplatedEmail(
+            List.of(user.getEmail()), 
+            "Banco de Talentos - Verificação de E-mail", 
+            "emails/email-verification", 
+            Map.of("userName", user.getName(), "code", verificationCode)
+        );
+    }
+
+    public void verifyEmail(VerificationRequest req) {
+        User user = userRepo.findByEmail(req.email())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuário não encontrado."));
+
+        if (user.getVerificationCode() != null && user.getVerificationCode().equals(req.code())) {
+            user.setEmailVerified(true);
+            user.setVerificationCode(null);
+            userRepo.save(user);
+
+            if (user.getRole() == User.Role.ADMIN && user.getStatus() == User.Status.PENDING) {
+                notifyAdmins(user);
+            }
+        } else {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Código de verificação inválido.");
+        }
+    }
+
+    public void forgotPassword(String email) {
+        User user = userRepo.findByEmail(email).orElse(null);
+        if (user == null) return;
+
+        String token = UUID.randomUUID().toString();
+        user.setResetToken(token);
+        user.setResetTokenExpires(Instant.now().plus(1, ChronoUnit.HOURS));
+        userRepo.save(user);
+
+        String resetUrl = appProperties.getUrl() + "/reset-password?token=" + token + "&email=" + email;
+        emailService.sendTemplatedEmail(
+            List.of(user.getEmail()), 
+            "Banco de Talentos - Redefinição de Senha", 
+            "emails/password-reset", 
+            Map.of("userName", user.getName(), "resetUrl", resetUrl)
+        );
+    }
+
+    public void resetPassword(PasswordResetRequest req) {
+        User user = userRepo.findByEmail(req.email())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuário não encontrado."));
+
+        if (user.getResetToken() == null || !user.getResetToken().equals(req.token()) || 
+            user.getResetTokenExpires().isBefore(Instant.now())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Token inválido ou expirado.");
+        }
+
+        user.setPassword(passwordEncoder.encode(req.newPassword()));
+        user.setResetToken(null);
+        user.setResetTokenExpires(null);
+        userRepo.save(user);
+    }
+
+    private void notifyAdmins(User newUser) {
+        List<User> activeAdmins = userRepo.findAllByRoleAndStatus(User.Role.ADMIN, User.Status.ACTIVE);
+        if (activeAdmins.isEmpty()) return;
+
+        List<String> adminEmails = activeAdmins.stream().map(User::getEmail).toList();
+        String portalUrl = appProperties.getUrl() + "/admin/pending-users";
+        
+        emailService.sendTemplatedEmail(
+            adminEmails, 
+            "Banco de Talentos - Novo Administrador Pendente de Aprovação", 
+            "emails/admin-approval-notification", 
+            Map.of("userName", newUser.getName(), "userEmail", newUser.getEmail(), "portalUrl", portalUrl)
+        );
     }
 }
