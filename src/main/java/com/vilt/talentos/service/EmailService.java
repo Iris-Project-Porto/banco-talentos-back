@@ -7,8 +7,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.thymeleaf.TemplateEngine;
+import org.thymeleaf.context.Context;
 
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -17,10 +20,19 @@ public class EmailService {
 
     private final WebClient brevoWebClient;
     private final BrevoProperties brevoProperties;
+    private final TemplateEngine templateEngine;
 
     @Async
     public void sendHtmlEmail(String to, String subject, String htmlContent) {
         sendHtmlEmail(List.of(to), subject, htmlContent);
+    }
+
+    @Async
+    public void sendTemplatedEmail(List<String> recipients, String subject, String templateName, Map<String, Object> variables) {
+        Context context = new Context();
+        context.setVariables(variables);
+        String htmlContent = templateEngine.process(templateName, context);
+        sendHtmlEmail(recipients, subject, htmlContent);
     }
 
     @Async
