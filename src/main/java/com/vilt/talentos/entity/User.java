@@ -56,6 +56,10 @@ public class User {
     @Column(name = "reset_token_expires")
     private Instant resetTokenExpires;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "group_id")
+    private Group group;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private Instant createdAt;

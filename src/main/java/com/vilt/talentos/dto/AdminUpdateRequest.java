@@ -1,6 +1,7 @@
 package com.vilt.talentos.dto;
 
 import java.util.List;
+import java.util.UUID;
 
 public record AdminUpdateRequest(
     String status,
@@ -20,6 +21,7 @@ public record AdminUpdateRequest(
     String githubUrl,
     String availability,
     String codeReviewAtuacao,
+    UUID groupId,
     List<SkillEntry> skills
 ) {
     public record SkillEntry(String name, String level) {}
