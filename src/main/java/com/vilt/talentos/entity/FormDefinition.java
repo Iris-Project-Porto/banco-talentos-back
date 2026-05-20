@@ -1,6 +1,7 @@
 package com.vilt.talentos.entity;
 
 import com.vilt.talentos.dto.FormCreateRequest;
+import com.vilt.talentos.dto.FormUpdateRequest;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
@@ -34,7 +35,18 @@ public class FormDefinition {
         this.elements = form.elements();
     }
 
-    /*public void atualizarInformacoes(Atualizar dados){
-    }*/
+    public void atualizarInformacoes(FormUpdateRequest dados){
+        if(dados.groupId()!=null){
+            this.groupId=dados.groupId();
+        }if(dados.version()!=null){
+            this.version=dados.version();
+        }if(dados.title()!=null){
+            this.title=dados.title();
+        }if(dados.elements()!=null){
+            this.elements=dados.elements();
+        }if(dados.active()!=null){
+            this.active=dados.active();
+        }
+    }
 }
 

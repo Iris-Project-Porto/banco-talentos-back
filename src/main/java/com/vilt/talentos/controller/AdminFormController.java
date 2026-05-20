@@ -2,6 +2,8 @@ package com.vilt.talentos.controller;
 
 import com.vilt.talentos.dto.FormCreateRequest;
 import com.vilt.talentos.dto.FormDefinitionResponse;
+import com.vilt.talentos.dto.FormListResponse;
+import com.vilt.talentos.dto.FormUpdateRequest;
 import com.vilt.talentos.entity.FormDefinition;
 import com.vilt.talentos.repository.FormDefinitonRepository;
 import com.vilt.talentos.service.FormService;
@@ -11,10 +13,15 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.util.UriComponentsBuilder;
+
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/admin/forms")
@@ -31,12 +38,40 @@ public class AdminFormController {
 
     @PostMapping
     @Transactional
-    @Operation(summary = "Criar novo formulario")
+    @Operation(summary = "Criar novo formulário")
     public ResponseEntity create(@RequestBody @Valid FormCreateRequest request, UriComponentsBuilder uriBuilder) {
         var formDefinition = new FormDefinition(request);
         repository.save(formDefinition);
         var uri = uriBuilder.path("/{id}").buildAndExpand(formDefinition.getId()).toUri();
         return ResponseEntity.created(uri).body(new FormDefinitionResponse(formDefinition));
+    }
+
+    @GetMapping
+    @Operation(summary = "Obter lista de formulários")
+    public Page<FormListResponse> getFormList(@PageableDefault(size = 10, sort = {"title"}) Pageable paginacao){
+        return repository.findAll(paginacao).map(FormListResponse::new);
+    }
+
+    @PutMapping
+    @Transactional
+    @Operation(summary = "Atualizar formulário")
+    public void updateForm(@RequestBody @Valid FormUpdateRequest form){
+        var formDefinition = repository.getReferenceById(form.getId());
+        formDefinition.atualizarInformacoes(form);
+    }
+
+    @GetMapping("/{id}")
+    @Operation(summary = "Obter dados do formulário cadastrado")
+    public ResponseEntity detailForm(@PathVariable UUID id){
+        var form = repository.getReferenceById(id);
+        return  ResponseEntity.ok(new FormListResponse(form));
+    }
+
+    @DeleteMapping("/{id}")
+    @Transactional
+    @Operation(summary = "Remover formulário")
+    public void deleteForm(@PathVariable UUID id){
+        repository.deleteById(id);
     }
 
 
