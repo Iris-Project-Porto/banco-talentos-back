@@ -1,0 +1,15 @@
+name: Keep App Awake
+
+on:
+  schedule:
+    # 08:00 às 20:59 BRT (Brasília) é 11:00 às 23:59 UTC
+    # Dispara a cada 14 minutos dentro dessa janela
+    - cron: '*/14 11-23 * * *'
+  workflow_dispatch: # Permite rodar manualmente para testar
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Render App
+        run: curl -f https://banco-talentos-back.onrender.com/actuator/health
