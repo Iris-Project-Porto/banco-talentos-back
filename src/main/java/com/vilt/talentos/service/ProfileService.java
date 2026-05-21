@@ -20,6 +20,7 @@ public class ProfileService {
     private final ProfileRepository profileRepo;
     private final SkillRepository skillRepo;
     private final UserRepository userRepo;
+    private final GroupRepository groupRepo;
     private final TalentEvaluationService evaluationService;
 
     @Transactional
@@ -104,6 +105,13 @@ public class ProfileService {
         if (req.githubUrl() != null) profile.setGithubUrl(req.githubUrl());
         if (req.availability() != null) profile.setAvailability(req.availability());
         if (req.codeReviewAtuacao() != null) profile.setCodeReviewAtuacao(req.codeReviewAtuacao());
+
+        if (req.groupId() != null) {
+            var group = groupRepo.findById(req.groupId())
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Group not found"));
+            profile.getUser().setGroup(group);
+            userRepo.save(profile.getUser());
+        }
 
         if (req.skills() != null) {
             profile.getSkills().clear();
