@@ -3,7 +3,9 @@ package com.vilt.talentos.controller;
 import com.vilt.talentos.dto.AdminUpdateRequest;
 import com.vilt.talentos.entity.Profile;
 import com.vilt.talentos.entity.User;
+import com.vilt.talentos.entity.Vaga;
 import com.vilt.talentos.repository.UserRepository;
+import com.vilt.talentos.repository.VagaRepository;
 import com.vilt.talentos.service.ProfileService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -31,6 +33,7 @@ public class AdminController {
 
     private final ProfileService profileService;
     private final UserRepository userRepo;
+    private final VagaRepository vagaRepo;
 
     @GetMapping("/profiles")
     @Operation(summary = "Listar todos os perfis")
@@ -83,6 +86,19 @@ public class AdminController {
             "Sr", all.stream().filter(p -> "Sr".equals(p.getNivelOverride() != null ? p.getNivelOverride() : p.getNivel())).count()
         );
 
+        var vagasStats = Map.of(
+            "total",       vagaRepo.count(),
+            "abertas",     vagaRepo.countByStatus(Vaga.StatusVaga.ABERTA),
+            "emAndamento", vagaRepo.countByStatus(Vaga.StatusVaga.EM_ANDAMENTO),
+            "fechadas",    vagaRepo.countByStatus(Vaga.StatusVaga.FECHADA),
+            "canceladas",  vagaRepo.countByStatus(Vaga.StatusVaga.CANCELADA),
+            "porNivel",    Map.of(
+                "Jr",    vagaRepo.countBySenioridade(Vaga.Senioridade.Jr),
+                "Pleno", vagaRepo.countBySenioridade(Vaga.Senioridade.Pleno),
+                "Sr",    vagaRepo.countBySenioridade(Vaga.Senioridade.Sr)
+            )
+        );
+
         return Map.of(
             "total", total,
             "ativos", ativos,
@@ -93,7 +109,8 @@ public class AdminController {
                 .limit(8)
                 .map(e -> Map.of("name", e.getKey(), "count", e.getValue()))
                 .toList(),
-            "nivelCount", nivelCount
+            "nivelCount", nivelCount,
+            "vagas", vagasStats
         );
     }
 
