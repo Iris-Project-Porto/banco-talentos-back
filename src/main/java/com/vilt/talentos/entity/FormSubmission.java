@@ -1,51 +1,49 @@
 package com.vilt.talentos.entity;
 
-import com.vilt.talentos.dto.FormCreateRequest;
-import com.vilt.talentos.dto.FormUpdateRequest;
+import com.vilt.talentos.dto.FormSubmissionRequest;
+import com.vilt.talentos.dto.FormSubmissionUpdateRequest;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.UpdateTimestamp;
 
+import java.time.Instant;
 import java.util.UUID;
 
-@Table(name = "form_definitions")
-@Entity(name = "FormDefinition")
+@Table(name = "form_submissions")
+@Entity(name = "FormSubmission")
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
 @EqualsAndHashCode(of="id")
-public class FormDefinition {
+public class FormSubmission {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
-    private UUID groupId;
-    private int version;
-    private String title;
-    private boolean active;
-    private String elements;
+    private UUID formDefinitionId;
+    private UUID userId;
+    private String answers;
+    @UpdateTimestamp
+    @Column(name = "updated_at")
+    private Instant updatedAt;
 
-
-    public FormDefinition(FormCreateRequest form) {
-        this.groupId = form.groupId();
-        this.version = form.version();
-        this.title = form.title();
-        this.active = form.active();
-        this.elements = form.elements();
+    public FormSubmission(FormSubmissionRequest form) {
+        this.formDefinitionId = form.formDefinitionId();
+        this.userId = form.userId();
+        this.answers = form.answers();
     }
 
-    public void atualizarInformacoes(FormUpdateRequest dados){
-        if(dados.groupId()!=null){
-            this.groupId=dados.groupId();
-        }if(dados.version()!=null){
-            this.version=dados.version();
-        }if(dados.title()!=null){
-            this.title=dados.title();
-        }if(dados.elements()!=null){
-            this.elements=dados.elements();
-        }if(dados.active()!=null){
-            this.active=dados.active();
+    public void atualizarInformacoes(FormSubmissionUpdateRequest dados){
+        if(dados.formDefinitionId()!=null){
+            this.formDefinitionId=dados.formDefinitionId();
+        }if(dados.userId()!=null){
+            this.userId=dados.userId();
+        }if(dados.answers()!=null){
+            this.answers=dados.answers();
+        }if(dados.updatedAt()!=null){
+            this.updatedAt=dados.updatedAt();
         }
     }
 }

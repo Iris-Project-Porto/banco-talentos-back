@@ -1,8 +1,7 @@
-CREATE TABLE form_definitions (
+CREATE TABLE form_submissions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    group_id UUID NOT NULL REFERENCES groups(id),
-    version INTEGER NOT NULL,
-    title VARCHAR(255) NOT NULL,
-    active BOOLEAN NOT NULL DEFAULT TRUE,
-    elements TEXT
+    form_definition_id UUID NOT NULL REFERENCES form_definitions(id),
+    user_id UUID NOT NULL REFERENCES users(id),
+    answers TEXT,
+    updated_at TIMESTAMP DEFAULT NOW()
 );
