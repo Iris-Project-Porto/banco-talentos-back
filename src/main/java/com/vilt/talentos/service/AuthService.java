@@ -2,6 +2,7 @@ package com.vilt.talentos.service;
 
 import com.vilt.talentos.dto.*;
 import com.vilt.talentos.entity.User;
+import com.vilt.talentos.repository.GroupRepository;
 import com.vilt.talentos.repository.UserRepository;
 import com.vilt.talentos.security.JwtService;
 import com.vilt.talentos.config.AppProperties;
@@ -25,6 +26,7 @@ import java.util.UUID;
 public class AuthService {
 
     private final UserRepository userRepo;
+    private final GroupRepository groupRepo;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final EmailService emailService;
@@ -70,6 +72,9 @@ public class AuthService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "E-mail já em uso.");
         }
 
+        var group = groupRepo.findById(request.groupId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Grupo não encontrado."));
+
         String verificationCode = String.format("%06d", new Random().nextInt(1000000));
 
         User user = User.builder()
@@ -80,6 +85,7 @@ public class AuthService {
                 .status(request.role() == User.Role.ADMIN ? User.Status.PENDING : User.Status.ACTIVE)
                 .verificationCode(verificationCode)
                 .emailVerified(false)
+                .group(group)
                 .build();
 
         userRepo.save(user);
