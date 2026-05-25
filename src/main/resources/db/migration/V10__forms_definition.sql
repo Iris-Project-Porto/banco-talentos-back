@@ -4,5 +4,5 @@ CREATE TABLE form_definitions (
     version INTEGER NOT NULL,
     title VARCHAR(255) NOT NULL,
     active BOOLEAN NOT NULL DEFAULT TRUE,
-    elements TEXT
+    elements JSONB
 );

@@ -1,14 +1,15 @@
 package com.vilt.talentos.dto;
 
-import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 
+import java.util.Map;
 import java.util.UUID;
 
-public record FormUpdateRequest(@NotBlank(message = "O id do gruopo é obrigatório")
+public record FormUpdateRequest(@NotNull(message = "O id do grupo é obrigatório")
                                 UUID id,
                                 UUID groupId,
                                 String title,
                                 Integer version,
-                                String elements,
+                                Map<String, Object> elements,
                                 Boolean active) {
 }

@@ -12,6 +12,13 @@ public record FormListResponse(UUID id,
                                boolean active){
 
     public FormListResponse(FormDefinition form){
-        this(form.getId(),form.getGroupId(),form.getVersion(),form.getTitle(),form.getActive(),form.getElements());
+        this(
+                form.getId(),
+                form.getGroupId(),
+                form.getTitle(),
+                form.getVersion(),
+                form.getElements(),
+                form.getActive()
+        );
     }
 }

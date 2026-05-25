@@ -1,18 +1,24 @@
 package com.vilt.talentos.dto;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 
 import java.util.UUID;
 
 public record FormCreateRequest(
-        @NotBlank(message = "O id do gruopo é obrigatório")
+
+        @NotNull(message = "O id do grupo é obrigatório")
         UUID groupId,
+
         @NotBlank(message = "O título do formulário é obrigatório")
         String title,
-        @NotBlank(message = "A versão do formulário é obrigatória")
-        int version,
+
+        @NotNull(message = "A versão do formulário é obrigatória")
+        Integer version,
+
         @NotBlank(message = "Os elementos do formulário são obrigatórios")
         String elements,
-        @NotBlank(message = "O status de ativação do formulário é obrigatório")
-        boolean active) {
-}
+
+        @NotNull(message = "O status é obrigatório")
+        Boolean active
+) {}

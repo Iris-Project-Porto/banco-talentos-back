@@ -39,7 +39,7 @@ public class AdminFormController {
     @PostMapping
     @Transactional
     @Operation(summary = "Criar novo formulário")
-    public ResponseEntity create(@RequestBody @Valid FormCreateRequest request, UriComponentsBuilder uriBuilder) {
+    public ResponseEntity<FormDefinitionResponse> create(@RequestBody @Valid FormCreateRequest request, UriComponentsBuilder uriBuilder) {
         var formDefinition = new FormDefinition(request);
         repository.save(formDefinition);
         var uri = uriBuilder.path("/{id}").buildAndExpand(formDefinition.getId()).toUri();
@@ -55,23 +55,26 @@ public class AdminFormController {
     @PutMapping
     @Transactional
     @Operation(summary = "Atualizar formulário")
-    public void updateForm(@RequestBody @Valid FormUpdateRequest form){
+    public ResponseEntity<Object> updateForm(@RequestBody @Valid FormUpdateRequest form){
         var formDefinition = repository.getReferenceById(form.getId());
         formDefinition.atualizarInformacoes(form);
+        return ResponseEntity.ok().build();
     }
 
     @GetMapping("/{id}")
     @Operation(summary = "Obter dados do formulário cadastrado")
-    public ResponseEntity detailForm(@PathVariable UUID id){
-        var form = repository.getReferenceById(id);
-        return  ResponseEntity.ok(new FormListResponse(form));
+    public ResponseEntity<FormListResponse> detailForm(@PathVariable UUID id){
+        var form = repository.findById(id);
+        return form.map(formDefinition -> ResponseEntity.ok(new FormListResponse(formDefinition))).orElseGet(() -> ResponseEntity.notFound().build());
+
     }
 
     @DeleteMapping("/{id}")
     @Transactional
     @Operation(summary = "Remover formulário")
-    public void deleteForm(@PathVariable UUID id){
+    public ResponseEntity<Object> deleteForm(@PathVariable UUID id){
         repository.deleteById(id);
+        return ResponseEntity.ok().build();
     }
 
 
