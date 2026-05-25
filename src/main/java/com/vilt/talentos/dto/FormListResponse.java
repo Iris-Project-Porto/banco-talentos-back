@@ -19,7 +19,7 @@ public record FormListResponse(UUID id,
                 form.getTitle(),
                 form.getVersion(),
                 form.getElements(),
-                form.getActive()
+                form.isActive()
         );
     }
 }
