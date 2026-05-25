@@ -8,6 +8,6 @@ import java.util.List;
 import java.util.UUID;
 
 @Repository
-public interface FormDefinitonRepository extends JpaRepository<FormDefinition, UUID> {
+public interface FormDefinitionRepository extends JpaRepository<FormDefinition, UUID> {
     List<FormDefinition> findAllByGroupId(UUID groupId);
 }

@@ -5,7 +5,7 @@ import com.vilt.talentos.dto.FormSubmissionRequest;
 import com.vilt.talentos.dto.FormSubmissionResponse;
 import com.vilt.talentos.entity.FormDefinition;
 import com.vilt.talentos.entity.FormSubmission;
-import com.vilt.talentos.repository.FormDefinitonRepository;
+import com.vilt.talentos.repository.FormDefinitionRepository;
 import com.vilt.talentos.repository.FormSubmissionRepository;
 import com.vilt.talentos.repository.UserRepository;
 import io.swagger.v3.oas.annotations.Operation;
@@ -36,7 +36,7 @@ public class FormSubmissionController {
     private FormSubmissionRepository formSubmissionRepository;
 
     @Autowired
-    private FormDefinitonRepository formDefinitonRepository;
+    private FormDefinitionRepository formDefinitionRepository;
 
     @Autowired
     private UserRepository userRepository;
@@ -55,7 +55,7 @@ public class FormSubmissionController {
 
         UUID groupId = user.getGroup().getId();
 
-        List<FormDefinition> forms = formDefinitonRepository.findAllByGroupId(groupId);
+        List<FormDefinition> forms = formDefinitionRepository.findAllByGroupId(groupId);
 
         var response = forms.stream()
                 .map(FormListResponse::new)
@@ -75,7 +75,7 @@ public class FormSubmissionController {
 
         UUID userId = UUID.fromString(authentication.getName());
 
-        formDefinitonRepository.findById(request.formDefinitionId())
+        formDefinitionRepository.findById(request.formDefinitionId())
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND,
                         "Formulário não encontrado."

@@ -5,8 +5,7 @@ import com.vilt.talentos.dto.FormDefinitionResponse;
 import com.vilt.talentos.dto.FormListResponse;
 import com.vilt.talentos.dto.FormUpdateRequest;
 import com.vilt.talentos.entity.FormDefinition;
-import com.vilt.talentos.repository.FormDefinitonRepository;
-import com.vilt.talentos.service.FormService;
+import com.vilt.talentos.repository.FormDefinitionRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -31,7 +30,7 @@ import java.util.UUID;
 public class AdminFormController {
 
     @Autowired
-    private FormDefinitonRepository repository;
+    private FormDefinitionRepository repository;
 
     @PostMapping
     @Transactional

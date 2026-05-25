@@ -18,7 +18,7 @@ public record FormCreateRequest(
         Integer version,
 
         @NotBlank(message = "Os elementos do formulário são obrigatórios")
-        Map<String, Object> elements;,
+        Map<String, Object> elements,
 
         @NotNull(message = "O status é obrigatório")
         Boolean active
