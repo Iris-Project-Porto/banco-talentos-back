@@ -52,7 +52,7 @@ public class AdminFormController {
     @Transactional
     @Operation(summary = "Atualizar formulário")
     public ResponseEntity<Object> updateForm(@RequestBody @Valid FormUpdateRequest form){
-        var formDefinition = repository.getReferenceById(form.getId());
+        var formDefinition = repository.getReferenceById(form.id());
         formDefinition.atualizarInformacoes(form);
         return ResponseEntity.ok().build();
     }
