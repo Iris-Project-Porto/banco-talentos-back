@@ -2,13 +2,14 @@ package com.vilt.talentos.dto;
 
 import com.vilt.talentos.entity.FormDefinition;
 
+import java.util.Map;
 import java.util.UUID;
 
 public record FormListResponse(UUID id,
                                UUID groupId,
                                String title,
                                int version,
-                               String elements,
+                               Map<String, Object> elements,
                                boolean active){
 
     public FormListResponse(FormDefinition form){

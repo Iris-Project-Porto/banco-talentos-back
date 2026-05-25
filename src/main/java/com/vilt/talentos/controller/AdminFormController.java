@@ -31,9 +31,6 @@ import java.util.UUID;
 public class AdminFormController {
 
     @Autowired
-    private FormService formService;
-
-    @Autowired
     private FormDefinitonRepository repository;
 
     @PostMapping
@@ -42,7 +39,7 @@ public class AdminFormController {
     public ResponseEntity<FormDefinitionResponse> create(@RequestBody @Valid FormCreateRequest request, UriComponentsBuilder uriBuilder) {
         var formDefinition = new FormDefinition(request);
         repository.save(formDefinition);
-        var uri = uriBuilder.path("/{id}").buildAndExpand(formDefinition.getId()).toUri();
+        var uri = uriBuilder.path("/api/admin/forms/{id}").buildAndExpand(formDefinition.getId()).toUri();
         return ResponseEntity.created(uri).body(new FormDefinitionResponse(formDefinition));
     }
 
