@@ -25,7 +25,8 @@ server:
   port: ${PORT:8080}
 
 app:
-  url: ${APP_URL:http://localhost:3000}
+  url: ${FRONT_URL:http://localhost:3000}
+  allowed-origins: ${ALLOWED_ORIGINS:http://localhost:3000,http://localhost:5173,http://127.0.0.1:5173}
   jwt:
     secret: ${JWT_SECRET:super-secret-key-at-least-32-chars-long-for-hs256}
     expiration-ms: 86400000

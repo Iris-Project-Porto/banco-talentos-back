@@ -23,11 +23,6 @@ public class EmailService {
     private final TemplateEngine templateEngine;
 
     @Async
-    public void sendHtmlEmail(String to, String subject, String htmlContent) {
-        sendHtmlEmail(List.of(to), subject, htmlContent);
-    }
-
-    @Async
     public void sendTemplatedEmail(List<String> recipients, String subject, String templateName, Map<String, Object> variables) {
         Context context = new Context();
         context.setVariables(variables);

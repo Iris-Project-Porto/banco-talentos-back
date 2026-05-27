@@ -32,6 +32,7 @@ public class SecurityConfig {
 
     private final JwtService jwtService;
     private final UserRepository userRepository;
+    private final AppProperties appProperties;
 
     @Bean
     public UserDetailsService userDetailsService() {
@@ -75,7 +76,7 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsSource() {
         var config = new CorsConfiguration();
-        config.setAllowedOriginPatterns(List.of("*"));
+        config.setAllowedOrigins(appProperties.getAllowedOrigins());
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);

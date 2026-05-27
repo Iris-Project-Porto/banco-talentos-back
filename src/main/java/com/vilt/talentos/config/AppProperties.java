@@ -10,4 +10,5 @@ import org.springframework.context.annotation.Configuration;
 @Getter @Setter
 public class AppProperties {
     private String url;
+    private java.util.List<String> allowedOrigins;
 }
