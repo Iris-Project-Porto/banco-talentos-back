@@ -55,21 +55,48 @@ public class ProfileService {
         profile.setNivelScore(evaluation.score());
         profile.setNivelJustificativa(evaluation.justificativa());
 
-        profile.getSkills().clear();
-        profile = profileRepo.saveAndFlush(profile);
-
+        // Reconciliação de skills: evita deletar e reinserir a mesma skill, o que causa erro de Unique Constraint
         if (req.skills() != null) {
-            for (var s : req.skills()) {
-                if (s.name() == null || s.name().isBlank()) continue;
-                var skill = skillRepo.findByName(s.name().trim())
-                        .orElseGet(() -> skillRepo.save(Skill.builder().name(s.name().trim()).build()));
-                profile.getSkills().add(ProfileSkill.builder()
-                        .profile(profile).skill(skill).level(s.level()).build());
+            var requestSkills = req.skills().stream()
+                    .filter(s -> s.name() != null && !s.name().isBlank())
+                    .collect(java.util.stream.Collectors.toMap(
+                            s -> s.name().trim().toLowerCase(),
+                            s -> s,
+                            (existing, replacement) -> existing
+                    ));
+
+            // 1. Remove as que não estão mais no request
+            profile.getSkills().removeIf(ps -> 
+                !requestSkills.containsKey(ps.getSkill().getName().trim().toLowerCase())
+            );
+
+            // 2. Atualiza níveis das existentes ou Adiciona novas
+            for (var entry : requestSkills.values()) {
+                String name = entry.name().trim();
+                String level = entry.level();
+                
+                var existing = profile.getSkills().stream()
+                        .filter(ps -> ps.getSkill().getName().equalsIgnoreCase(name))
+                        .findFirst();
+
+                if (existing.isPresent()) {
+                    existing.get().setLevel(level);
+                } else {
+                    var skill = skillRepo.findByName(name)
+                            .orElseGet(() -> skillRepo.save(Skill.builder().name(name).build()));
+                    
+                    profile.getSkills().add(ProfileSkill.builder()
+                            .profile(profile)
+                            .skill(skill)
+                            .level(level)
+                            .build());
+                }
             }
-            profile = profileRepo.save(profile);
+        } else {
+            profile.getSkills().clear();
         }
 
-        return profile;
+        return profileRepo.save(profile);
     }
 
     public Profile getByUserId(UUID userId) {
@@ -114,14 +141,34 @@ public class ProfileService {
         }
 
         if (req.skills() != null) {
-            profile.getSkills().clear();
-            profile = profileRepo.saveAndFlush(profile);
-            for (var s : req.skills()) {
-                if (s.name() == null || s.name().isBlank()) continue;
-                var skill = skillRepo.findByName(s.name().trim())
-                        .orElseGet(() -> skillRepo.save(Skill.builder().name(s.name().trim()).build()));
-                profile.getSkills().add(ProfileSkill.builder()
-                        .profile(profile).skill(skill).level(s.level()).build());
+            var requestSkills = req.skills().stream()
+                    .filter(s -> s.name() != null && !s.name().isBlank())
+                    .collect(java.util.stream.Collectors.toMap(
+                            s -> s.name().trim().toLowerCase(),
+                            s -> s,
+                            (existing, replacement) -> existing
+                    ));
+
+            profile.getSkills().removeIf(ps -> 
+                !requestSkills.containsKey(ps.getSkill().getName().trim().toLowerCase())
+            );
+
+            for (var entry : requestSkills.values()) {
+                String name = entry.name().trim();
+                String level = entry.level();
+                
+                var existing = profile.getSkills().stream()
+                        .filter(ps -> ps.getSkill().getName().equalsIgnoreCase(name))
+                        .findFirst();
+
+                if (existing.isPresent()) {
+                    existing.get().setLevel(level);
+                } else {
+                    var skill = skillRepo.findByName(name)
+                            .orElseGet(() -> skillRepo.save(Skill.builder().name(name).build()));
+                    profile.getSkills().add(ProfileSkill.builder()
+                            .profile(profile).skill(skill).level(level).build());
+                }
             }
         }
 
