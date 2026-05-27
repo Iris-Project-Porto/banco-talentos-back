@@ -2,8 +2,7 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
-    <title>Novo Administrador Pendente</title>
-    <!-- Importando a fonte Inter do Google Fonts -->
+    <title>Novo Perfil Aguardando Avaliação</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
@@ -32,30 +31,29 @@
             text-transform: uppercase; 
             letter-spacing: 0.5px; 
         }
-        .user-info { background-color: #f8f9fa; border-left: 4px solid #e81464; padding: 15px; margin: 20px 0; list-style: none; }
-        .user-info li { margin-bottom: 10px; }
-        .user-info strong { color: #2c3848; font-weight: 700; }
+        .info-box { background-color: #f8f9fa; border-left: 4px solid #e81464; padding: 15px; margin: 20px 0; }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h2>ÍRIS |BANCO DE TALENTOS</h2>
+            <h2>ÍRIS | BANCO DE TALENTOS</h2>
         </div>
         <div class="content">
-            <h3 style="color: #2c3848; font-weight: 700;">Novo registro de administrador</h3>
+            <h3 style="color: #2c3848; font-weight: 700;">Novo perfil para avaliação</h3>
             <p>Olá,</p>
-            <p>Um novo usuário solicitou acesso como <strong>Administrador</strong> e aguarda a sua aprovação:</p>
+            <p>Um novo colaborador submeteu seu perfil técnico e ele está aguardando avaliação na fila administrativa.</p>
             
-            <ul class="user-info">
-                <li><strong>Nome:</strong> <span th:text="${userName}">Nome do Usuário</span></li>
-                <li><strong>E-mail:</strong> <span th:text="${userEmail}">email@exemplo.com</span></li>
-            </ul>
+            <div class="info-box">
+                <p><strong>Colaborador:</strong> <span th:text="${userName}">Nome</span></p>
+                <p><strong>Cargo:</strong> <span th:text="${cargo}">Cargo</span></p>
+                <p><strong>Nível (Avaliação IA):</strong> <span th:text="${nivelIA}">Pleno</span></p>
+            </div>
             
-            <p>Para processar esta solicitação, acesse o portal clicando no botão abaixo:</p>
+            <p>Acesse a fila de revisão para validar as informações e aprovar o perfil:</p>
             
             <div class="actions">
-                <a th:href="${portalUrl}" class="button">ACESSAR PORTAL</a>
+                <a th:href="${portalUrl + '/admin/fila'}" class="button">AVALIAR NA FILA</a>
             </div>
         </div>
         <div class="footer">
