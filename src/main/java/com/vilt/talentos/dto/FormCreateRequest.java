@@ -1,6 +1,7 @@
 package com.vilt.talentos.dto;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 
 import java.util.Map;
@@ -17,7 +18,7 @@ public record FormCreateRequest(
         @NotNull(message = "A versão do formulário é obrigatória")
         Integer version,
 
-        @NotBlank(message = "Os elementos do formulário são obrigatórios")
+        @NotEmpty(message = "Os elementos do formulário são obrigatórios")
         Map<String, Object> elements,
 
         @NotNull(message = "O status é obrigatório")

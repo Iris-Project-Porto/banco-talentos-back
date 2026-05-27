@@ -105,7 +105,7 @@ public class FormSubmissionController {
         var submission = formSubmissionRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND,
-                        "Submissão não encontrada."
+                        "Submissão de respostas não encontrada com o id informado."
                 ));
 
         return ResponseEntity.ok(new FormSubmissionResponse(submission));
