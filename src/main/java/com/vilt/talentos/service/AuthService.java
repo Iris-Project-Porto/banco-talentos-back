@@ -153,7 +153,7 @@ public class AuthService {
         if (activeAdmins.isEmpty()) return;
 
         List<String> adminEmails = activeAdmins.stream().map(User::getEmail).toList();
-        String portalUrl = appProperties.getUrl() + "/admin/fila";
+        String portalUrl = appProperties.getUrl() + "/admin/usuarios";
         
         emailService.sendTemplatedEmail(
             adminEmails, 
