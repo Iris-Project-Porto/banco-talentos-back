@@ -1,5 +1,6 @@
 package com.vilt.talentos.service;
 
+import com.vilt.talentos.config.AppProperties;
 import com.vilt.talentos.dto.AdminUpdateRequest;
 import com.vilt.talentos.dto.ProfileRequest;
 import com.vilt.talentos.entity.*;
@@ -22,6 +23,8 @@ public class ProfileService {
     private final UserRepository userRepo;
     private final GroupRepository groupRepo;
     private final TalentEvaluationService evaluationService;
+    private final EmailService emailService;
+    private final AppProperties appProperties;
 
     @Transactional
     public Profile createOrUpdate(UUID userId, ProfileRequest req) {
@@ -32,6 +35,12 @@ public class ProfileService {
 
         var profile = profileRepo.findByUserId(userId).orElseGet(() -> Profile.builder()
                 .user(user).status("PENDENTE").build());
+
+        // Se o perfil era novo ou estava inativo, e agora está sendo submetido, garantimos status PENDENTE
+        boolean isNewSubmission = !"ATIVO".equals(profile.getStatus());
+        if (isNewSubmission) {
+            profile.setStatus("PENDENTE");
+        }
 
         profile.setPhotoUrl(req.photoUrl());
         profile.setCargo(req.cargo());
@@ -60,21 +69,21 @@ public class ProfileService {
             var requestSkills = req.skills().stream()
                     .filter(s -> s.name() != null && !s.name().isBlank())
                     .collect(java.util.stream.Collectors.toMap(
-                            s -> s.name().trim().toLowerCase(),
+                            s -> s.name().trim().toUpperCase(),
                             s -> s,
                             (existing, replacement) -> existing
                     ));
 
             // 1. Remove as que não estão mais no request
             profile.getSkills().removeIf(ps -> 
-                !requestSkills.containsKey(ps.getSkill().getName().trim().toLowerCase())
+                !requestSkills.containsKey(ps.getSkill().getName().trim().toUpperCase())
             );
 
             // 2. Atualiza níveis das existentes ou Adiciona novas
             for (var entry : requestSkills.values()) {
-                String name = entry.name().trim();
+                String name = entry.name().trim().toUpperCase();
                 String level = entry.level();
-                
+
                 var existing = profile.getSkills().stream()
                         .filter(ps -> ps.getSkill().getName().equalsIgnoreCase(name))
                         .findFirst();
@@ -83,8 +92,7 @@ public class ProfileService {
                     existing.get().setLevel(level);
                 } else {
                     var skill = skillRepo.findByName(name)
-                            .orElseGet(() -> skillRepo.save(Skill.builder().name(name).build()));
-                    
+                            .orElseGet(() -> skillRepo.save(Skill.builder().name(name).build()));                    
                     profile.getSkills().add(ProfileSkill.builder()
                             .profile(profile)
                             .skill(skill)
@@ -96,7 +104,20 @@ public class ProfileService {
             profile.getSkills().clear();
         }
 
-        return profileRepo.save(profile);
+        Profile saved = profileRepo.save(profile);
+
+        // Notificar admins se for uma submissão pendente
+        if (isNewSubmission) {
+            List<String> adminEmails = userRepo.findAllByRoleAndStatus(User.Role.ADMIN, User.Status.ACTIVE)
+                    .stream().map(User::getEmail).toList();
+            if (!adminEmails.isEmpty()) {
+                emailService.sendAdminNewProfileSubmissionEmail(
+                    adminEmails, user.getName(), saved.getCargo(), saved.getNivel(), appProperties.getUrl()
+                );
+            }
+        }
+
+        return saved;
     }
 
     public Profile getByUserId(UUID userId) {
@@ -116,6 +137,9 @@ public class ProfileService {
     public Profile adminUpdate(UUID profileId, AdminUpdateRequest req) {
         var profile = profileRepo.findById(profileId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+        
+        String oldStatus = profile.getStatus();
+        
         if (req.status() != null) profile.setStatus(req.status());
         if (req.nivelOverride() != null) profile.setNivelOverride("".equals(req.nivelOverride()) ? null : req.nivelOverride());
         if (req.cargo() != null) profile.setCargo(req.cargo());
@@ -144,17 +168,17 @@ public class ProfileService {
             var requestSkills = req.skills().stream()
                     .filter(s -> s.name() != null && !s.name().isBlank())
                     .collect(java.util.stream.Collectors.toMap(
-                            s -> s.name().trim().toLowerCase(),
+                            s -> s.name().trim().toUpperCase(),
                             s -> s,
                             (existing, replacement) -> existing
                     ));
 
             profile.getSkills().removeIf(ps -> 
-                !requestSkills.containsKey(ps.getSkill().getName().trim().toLowerCase())
+                !requestSkills.containsKey(ps.getSkill().getName().trim().toUpperCase())
             );
 
             for (var entry : requestSkills.values()) {
-                String name = entry.name().trim();
+                String name = entry.name().trim().toUpperCase();
                 String level = entry.level();
                 
                 var existing = profile.getSkills().stream()
@@ -172,6 +196,15 @@ public class ProfileService {
             }
         }
 
-        return profileRepo.save(profile);
+        Profile saved = profileRepo.save(profile);
+
+        // Se o status mudou para ATIVO, notifica o colaborador
+        if ("ATIVO".equals(saved.getStatus()) && !"ATIVO".equals(oldStatus)) {
+            emailService.sendResourceProfileApprovedEmail(
+                saved.getUser().getEmail(), saved.getUser().getName(), appProperties.getUrl()
+            );
+        }
+
+        return saved;
     }
 }
