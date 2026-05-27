@@ -53,4 +53,33 @@ public class EmailService {
                 .doOnError(error -> log.error("Erro ao enviar e-mail para: {}. Erro: {}", recipients, error.getMessage()))
                 .subscribe();
     }
+
+    @Async
+    public void sendAdminApprovalConfirmedEmail(String toEmail, String userName, String portalUrl) {
+        Map<String, Object> variables = Map.of(
+            "userName", userName,
+            "portalUrl", portalUrl
+        );
+        sendTemplatedEmail(List.of(toEmail), "ÍRIS | Acesso Aprovado", "emails/admin-approval-confirmed", variables);
+    }
+
+    @Async
+    public void sendAdminNewProfileSubmissionEmail(List<String> adminEmails, String userName, String cargo, String nivelIA, String portalUrl) {
+        Map<String, Object> variables = Map.of(
+            "userName", userName,
+            "cargo", cargo != null ? cargo : "Não informado",
+            "nivelIA", nivelIA != null ? nivelIA : "Não avaliado",
+            "portalUrl", portalUrl
+        );
+        sendTemplatedEmail(adminEmails, "ÍRIS | Novo Perfil Pendente", "emails/admin-new-profile-submission", variables);
+    }
+
+    @Async
+    public void sendResourceProfileApprovedEmail(String toEmail, String userName, String portalUrl) {
+        Map<String, Object> variables = Map.of(
+            "userName", userName,
+            "portalUrl", portalUrl
+        );
+        sendTemplatedEmail(List.of(toEmail), "ÍRIS | Perfil Aprovado", "emails/resource-profile-approved", variables);
+    }
 }

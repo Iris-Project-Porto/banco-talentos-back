@@ -1,9 +1,11 @@
 package com.vilt.talentos.controller;
 
+import com.vilt.talentos.config.AppProperties;
 import com.vilt.talentos.dto.AdminUpdateRequest;
 import com.vilt.talentos.entity.Profile;
 import com.vilt.talentos.entity.User;
 import com.vilt.talentos.repository.UserRepository;
+import com.vilt.talentos.service.EmailService;
 import com.vilt.talentos.service.ProfileService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -31,6 +33,8 @@ public class AdminController {
 
     private final ProfileService profileService;
     private final UserRepository userRepo;
+    private final EmailService emailService;
+    private final AppProperties appProperties;
 
     @GetMapping("/profiles")
     @Operation(summary = "Listar todos os perfis")
@@ -121,6 +125,9 @@ public class AdminController {
         user.setApprovedAt(Instant.now());
         
         userRepo.save(user);
+
+        // Notificar o usuário por e-mail
+        emailService.sendAdminApprovalConfirmedEmail(user.getEmail(), user.getName(), appProperties.getUrl());
     }
 
     @PostMapping("/users/{id}/reject")
