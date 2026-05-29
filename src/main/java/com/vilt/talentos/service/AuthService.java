@@ -34,6 +34,7 @@ public class AuthService {
 
     public AuthResponse login(AuthRequest req) {
         log.info("Tentando login para: {}", req.email());
+        validateEmailDomain(req.email());
 
         var user = userRepo.findByEmail(req.email())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Credenciais inválidas."));
@@ -64,9 +65,7 @@ public class AuthService {
     }
 
     public void register(RegisterRequest request){
-        if (!request.email().endsWith("@vilt-group.com")) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "E-mail deve ser do domínio 'vilt-group.com'.");
-        }
+        validateEmailDomain(request.email());
 
         if (userRepo.findByEmail(request.email()).isPresent()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "E-mail já em uso.");
@@ -99,6 +98,7 @@ public class AuthService {
     }
 
     public void verifyEmail(VerificationRequest req) {
+        validateEmailDomain(req.email());
         User user = userRepo.findByEmail(req.email())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuário não encontrado."));
 
@@ -116,8 +116,9 @@ public class AuthService {
     }
 
     public void forgotPassword(String email) {
-        User user = userRepo.findByEmail(email).orElse(null);
-        if (user == null) return;
+        validateEmailDomain(email);
+        User user = userRepo.findByEmail(email)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "E-mail não encontrado em nossa base de dados."));
 
         String token = UUID.randomUUID().toString();
         user.setResetToken(token);
@@ -134,8 +135,9 @@ public class AuthService {
     }
 
     public void resetPassword(PasswordResetRequest req) {
+        validateEmailDomain(req.email());
         User user = userRepo.findByEmail(req.email())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuário não encontrado."));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "E-mail não encontrado em nossa base de dados."));
 
         if (user.getResetToken() == null || !user.getResetToken().equals(req.token()) || 
             user.getResetTokenExpires().isBefore(Instant.now())) {
@@ -146,6 +148,15 @@ public class AuthService {
         user.setResetToken(null);
         user.setResetTokenExpires(null);
         userRepo.save(user);
+    }
+
+    private void validateEmailDomain(String email) {
+        if (email == null || email.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "O e-mail é obrigatório.");
+        }
+        if (!email.endsWith("@vilt-group.com")) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "E-mail deve ser do domínio 'vilt-group.com'.");
+        }
     }
 
     private void notifyAdmins(User newUser) {
