@@ -83,18 +83,14 @@ public class AuthService {
                 .role(request.role())
                 .status(request.role() == User.Role.ADMIN ? User.Status.PENDING : User.Status.ACTIVE)
                 .verificationCode(verificationCode)
+                .verificationCodeExpiresAt(Instant.now().plus(30, ChronoUnit.MINUTES))
                 .emailVerified(false)
                 .group(group)
                 .build();
 
         userRepo.save(user);
         
-        emailService.sendTemplatedEmail(
-            List.of(user.getEmail()), 
-            "Banco de Talentos - Verificação de E-mail", 
-            "emails/email-verification", 
-            Map.of("userName", user.getName(), "code", verificationCode)
-        );
+        sendVerificationEmail(user, verificationCode);
     }
 
     public void verifyEmail(VerificationRequest req) {
@@ -102,17 +98,52 @@ public class AuthService {
         User user = userRepo.findByEmail(req.email())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuário não encontrado."));
 
-        if (user.getVerificationCode() != null && user.getVerificationCode().equals(req.code())) {
+        if (user.isEmailVerified()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "E-mail já verificado.");
+        }
+
+        if (user.getVerificationCode() != null && 
+            user.getVerificationCode().equals(req.code()) &&
+            user.getVerificationCodeExpiresAt() != null &&
+            user.getVerificationCodeExpiresAt().isAfter(Instant.now())) {
+            
             user.setEmailVerified(true);
             user.setVerificationCode(null);
+            user.setVerificationCodeExpiresAt(null);
             userRepo.save(user);
 
             if (user.getRole() == User.Role.ADMIN && user.getStatus() == User.Status.PENDING) {
                 notifyAdmins(user);
             }
         } else {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Código de verificação inválido.");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Código de verificação inválido ou expirado.");
         }
+    }
+
+    public void resendVerificationCode(String email) {
+        validateEmailDomain(email);
+        User user = userRepo.findByEmail(email)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuário não encontrado."));
+
+        if (user.isEmailVerified()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "E-mail já verificado.");
+        }
+
+        String verificationCode = String.format("%06d", new Random().nextInt(1000000));
+        user.setVerificationCode(verificationCode);
+        user.setVerificationCodeExpiresAt(Instant.now().plus(30, ChronoUnit.MINUTES));
+        userRepo.save(user);
+
+        sendVerificationEmail(user, verificationCode);
+    }
+
+    private void sendVerificationEmail(User user, String verificationCode) {
+        emailService.sendTemplatedEmail(
+            List.of(user.getEmail()), 
+            "Banco de Talentos - Verificação de E-mail", 
+            "emails/email-verification", 
+            Map.of("userName", user.getName(), "code", verificationCode)
+        );
     }
 
     public void forgotPassword(String email) {
