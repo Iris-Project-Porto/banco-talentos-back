@@ -48,6 +48,9 @@ public class User {
     @Column(name = "verification_code")
     private String verificationCode;
 
+    @Column(name = "verification_code_expires_at")
+    private Instant verificationCodeExpiresAt;
+
     @Builder.Default
     @Column(name = "email_verified")
     private boolean emailVerified = false;

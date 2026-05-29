@@ -38,6 +38,13 @@ public class AuthController {
         return ApiResponse.success("E-mail verificado com sucesso!");
     }
 
+    @PostMapping("/resend-verification-code")
+    @Operation(summary = "Reenviar código de verificação", description = "Gera e envia um novo código de verificação para o e-mail informado.")
+    public ApiResponse resendVerification(@RequestBody @Valid ResendVerificationRequest req) {
+        authService.resendVerificationCode(req.email());
+        return ApiResponse.success("Novo código de verificação enviado para o seu e-mail.");
+    }
+
     @PostMapping("/forgot-password")
     @Operation(summary = "Esqueci minha senha", description = "Envia um link de redefinição para o e-mail informado.")
     public ApiResponse forgotPassword(@RequestParam(required = false) String email) {
