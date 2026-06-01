@@ -47,8 +47,8 @@ public class AuthController {
 
     @PostMapping("/forgot-password")
     @Operation(summary = "Esqueci minha senha", description = "Envia um link de redefinição para o e-mail informado.")
-    public ApiResponse forgotPassword(@RequestParam(required = false) String email) {
-        authService.forgotPassword(email);
+    public ApiResponse forgotPassword(@RequestBody @Valid ForgotPasswordRequest req) {
+        authService.forgotPassword(req.email());
         return ApiResponse.success("Um link de redefinição foi enviado para o seu e-mail.");
     }
 
