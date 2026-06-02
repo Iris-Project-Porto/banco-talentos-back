@@ -60,6 +60,7 @@ public class SkillService {
                 .orElseGet(() -> {
                     Skill skill = Skill.builder()
                             .name(nameUpper)
+                            .type(request.type())
                             .importanceWeight(request.importanceWeight() != null ? request.importanceWeight() : 1)
                             .active(true)
                             .build();
@@ -81,6 +82,7 @@ public class SkillService {
                 });
 
         skill.setName(nameUpper);
+        skill.setType(request.type());
         if (request.importanceWeight() != null) {
             skill.setImportanceWeight(request.importanceWeight());
         }
@@ -96,6 +98,6 @@ public class SkillService {
     }
 
     private SkillResponse mapToResponse(Skill s) {
-        return new SkillResponse(s.getId(), s.getName(), s.isActive(), s.getImportanceWeight());
+        return new SkillResponse(s.getId(), s.getName(), s.getType(), s.isActive(), s.getImportanceWeight());
     }
 }

@@ -24,7 +24,7 @@ public record AdminUpdateRequest(
     String registrationNumber,
     String registrationStatus,
     UUID groupId,
-    List<SkillEntry> skills
+    List<SkillEntry> skills,
+    List<SkillEntry> softSkills
 ) {
-    public record SkillEntry(String name, Integer level) {}
 }
