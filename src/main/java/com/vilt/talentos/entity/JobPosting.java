@@ -37,7 +37,8 @@ public class JobPosting {
     @Column(nullable = false)
     private String recruiter;
 
-    private int estimatedAllocationWeeks; // Não obrigatório
+    @Column(name = "estimated_allocation_weeks")
+    private Integer estimatedAllocationWeeks; // Não obrigatório
 
     @Column(nullable = false)
     private String status;
