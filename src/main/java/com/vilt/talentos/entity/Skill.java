@@ -16,4 +16,12 @@ public class Skill {
 
     @Column(nullable = false, unique = true)
     private String name;
+
+    @Builder.Default
+    @Column(nullable = false)
+    private boolean active = true;
+
+    @Column(name = "importance_weight")
+    @Builder.Default
+    private Integer importanceWeight = 1;
 }

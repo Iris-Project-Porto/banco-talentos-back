@@ -91,6 +91,14 @@ public class Profile {
     @Column(name = "code_review_atuacao")
     private String codeReviewAtuacao;
 
+    @Column(name = "registration_number")
+    private String registrationNumber;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "registration_status")
+    @Builder.Default
+    private RegistrationStatus registrationStatus = RegistrationStatus.NOT_REQUESTED;
+
     @Column(nullable = false)
     @Builder.Default
     private String status = "PENDENTE";

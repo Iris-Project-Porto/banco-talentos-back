@@ -2,6 +2,7 @@ package com.vilt.talentos.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.vilt.talentos.dto.ProfileRequest;
+import com.vilt.talentos.entity.ExperienceLevel;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -22,7 +23,7 @@ public class TalentEvaluationService {
     private final ObjectMapper mapper = new ObjectMapper();
     private final HttpClient http = HttpClient.newHttpClient();
 
-    public record Evaluation(String nivel, int score, String justificativa) {}
+    public record Evaluation(ExperienceLevel nivel, int score, String justificativa) {}
 
     // ── Keywords da Matriz de Conhecimentos Porto Seguro ──────────────────────
 
@@ -156,10 +157,10 @@ public class TalentEvaluationService {
         if (pSkills == 2) detalhes.add("skills Sênior detectadas na matriz (+2)");
         else if (pSkills == 1) detalhes.add("skills Pleno detectadas na matriz (+1)");
 
-        String nivel;
-        if (pontos >= 13)     nivel = "Sr";
-        else if (pontos >= 6) nivel = "Pleno";
-        else                  nivel = "Jr";
+        ExperienceLevel nivel;
+        if (pontos >= 13)     nivel = ExperienceLevel.SENIOR;
+        else if (pontos >= 6) nivel = ExperienceLevel.PLENO;
+        else                  nivel = ExperienceLevel.JUNIOR;
 
         String resumo = detalhes.isEmpty()
             ? "Perfil iniciante — poucos indicadores de senioridade preenchidos."
@@ -209,7 +210,7 @@ public class TalentEvaluationService {
                 Score calculado pela Matriz (0–18): %d  [Jr<6 | Pleno 6–12 | Sr≥13]
 
                 Responda APENAS com JSON válido, sem markdown:
-                {"nivel":"Sr","score":%d,"justificativa":"texto curto explicando o nível"}
+                {"nivel":"SENIOR","score":%d,"justificativa":"texto curto explicando o nível"}
                 """.formatted(
                     req.area(), req.experienceYears(), skills,
                     req.autonomia(), req.prontidaoStack(), req.nivelMentoria(),
@@ -237,7 +238,7 @@ public class TalentEvaluationService {
             text = text.replaceAll("```json\\n?", "").replaceAll("```", "").trim();
             var result = mapper.readTree(text);
             return new Evaluation(
-                result.get("nivel").asText(base.nivel()),
+                ExperienceLevel.fromValue(result.get("nivel").asText(base.nivel().name())),
                 result.get("score").asInt(base.score()),
                 result.get("justificativa").asText(base.justificativa())
             );
