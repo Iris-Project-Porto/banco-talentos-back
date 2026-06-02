@@ -13,7 +13,7 @@ CREATE TABLE squads (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(255) UNIQUE NOT NULL,
     description TEXT,
-    porto_representative VARCHAR(255),
+    porto_coordinator VARCHAR(255),
     project_manager VARCHAR(255),
     project_id UUID REFERENCES projects(id),
     active BOOLEAN NOT NULL DEFAULT TRUE,
