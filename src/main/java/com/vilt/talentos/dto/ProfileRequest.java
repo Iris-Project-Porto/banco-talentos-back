@@ -37,5 +37,4 @@ public record ProfileRequest(
 
     List<SkillEntry> skills
 ) {
-    public record SkillEntry(String name, Integer level) {}
 }

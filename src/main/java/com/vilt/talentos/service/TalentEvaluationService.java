@@ -2,6 +2,7 @@ package com.vilt.talentos.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.vilt.talentos.dto.ProfileRequest;
+import com.vilt.talentos.dto.SkillEntry;
 import com.vilt.talentos.entity.ExperienceLevel;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -99,7 +100,7 @@ public class TalentEvaluationService {
     }
 
     // Skill-based scoring usando keywords da Matriz Porto Seguro
-    private int scoreSkills(List<ProfileRequest.SkillEntry> skills) {
+    private int scoreSkills(List<SkillEntry> skills) {
         if (skills == null || skills.isEmpty()) return 0;
         String allSkills = skills.stream()
             .map(s -> s.name() == null ? "" : s.name().toLowerCase())

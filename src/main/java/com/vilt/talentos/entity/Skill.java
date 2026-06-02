@@ -17,6 +17,11 @@ public class Skill {
     @Column(nullable = false, unique = true)
     private String name;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    @Builder.Default
+    private SkillType type = SkillType.HARD;
+
     @Builder.Default
     @Column(nullable = false)
     private boolean active = true;
