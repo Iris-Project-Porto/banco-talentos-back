@@ -60,7 +60,14 @@ public class ProfileService {
         profile.setLinkedinUrl(req.linkedinUrl());
         profile.setGithubUrl(req.githubUrl());
         profile.setCodeReviewAtuacao(req.codeReviewAtuacao());
-        profile.setNivel(evaluation.nivel());
+        
+        // Lógica de Matrícula para o Recurso
+        if (req.registrationNumber() != null && !req.registrationNumber().isBlank()) {
+            profile.setRegistrationNumber(req.registrationNumber());
+            profile.setRegistrationStatus(RegistrationStatus.APPROVED);
+        }
+
+        profile.setNivel(evaluation.nivel().name());
         profile.setNivelScore(evaluation.score());
         profile.setNivelJustificativa(evaluation.justificativa());
 
@@ -82,21 +89,21 @@ public class ProfileService {
             // 2. Atualiza níveis das existentes ou Adiciona novas
             for (var entry : requestSkills.values()) {
                 String name = entry.name().trim().toUpperCase();
-                String level = entry.level();
+                Integer level = entry.level();
 
                 var existing = profile.getSkills().stream()
                         .filter(ps -> ps.getSkill().getName().equalsIgnoreCase(name))
                         .findFirst();
 
                 if (existing.isPresent()) {
-                    existing.get().setLevel(level);
+                    existing.get().setProficiencyLevel(level);
                 } else {
                     var skill = skillRepo.findByName(name)
                             .orElseGet(() -> skillRepo.save(Skill.builder().name(name).build()));                    
                     profile.getSkills().add(ProfileSkill.builder()
                             .profile(profile)
                             .skill(skill)
-                            .level(level)
+                            .proficiencyLevel(level)
                             .build());
                 }
             }
@@ -121,16 +128,38 @@ public class ProfileService {
     }
 
     public Profile getByUserId(UUID userId) {
-        return profileRepo.findByUserId(userId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+        Profile profile = profileRepo.findByUserId(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Perfil não encontrado para o usuário"));
+        
+        return sanitizeProfileForResource(profile);
+    }
+
+    private Profile sanitizeProfileForResource(Profile profile) {
+        if (profile.getRegistrationStatus() == RegistrationStatus.REJECTED) {
+            profile.setRegistrationStatus(null);
+        }
+        return profile;
+    }
+
+    public Profile getById(UUID id) {
+        return profileRepo.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Perfil não encontrado"));
     }
 
     public List<Profile> getByStatus(String status) {
-        return profileRepo.findByStatus(status);
+        List<Profile> list = profileRepo.findByStatus(status);
+        if (list.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Nenhum perfil encontrado com o status: " + status);
+        }
+        return list;
     }
 
     public List<Profile> getAll() {
-        return profileRepo.findAll();
+        List<Profile> list = profileRepo.findAll();
+        if (list.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Nenhum perfil encontrado");
+        }
+        return list;
     }
 
     @Transactional
@@ -156,6 +185,14 @@ public class ProfileService {
         if (req.githubUrl() != null) profile.setGithubUrl(req.githubUrl());
         if (req.availability() != null) profile.setAvailability(req.availability());
         if (req.codeReviewAtuacao() != null) profile.setCodeReviewAtuacao(req.codeReviewAtuacao());
+        if (req.registrationNumber() != null) profile.setRegistrationNumber(req.registrationNumber());
+        if (req.registrationStatus() != null) {
+            try {
+                profile.setRegistrationStatus(RegistrationStatus.valueOf(req.registrationStatus()));
+            } catch (IllegalArgumentException e) {
+                // Ignore invalid enum
+            }
+        }
 
         if (req.groupId() != null) {
             var group = groupRepo.findById(req.groupId())
@@ -179,19 +216,22 @@ public class ProfileService {
 
             for (var entry : requestSkills.values()) {
                 String name = entry.name().trim().toUpperCase();
-                String level = entry.level();
+                Integer level = entry.level();
                 
                 var existing = profile.getSkills().stream()
                         .filter(ps -> ps.getSkill().getName().equalsIgnoreCase(name))
                         .findFirst();
 
                 if (existing.isPresent()) {
-                    existing.get().setLevel(level);
+                    existing.get().setProficiencyLevel(level);
                 } else {
                     var skill = skillRepo.findByName(name)
                             .orElseGet(() -> skillRepo.save(Skill.builder().name(name).build()));
                     profile.getSkills().add(ProfileSkill.builder()
-                            .profile(profile).skill(skill).level(level).build());
+                            .profile(profile)
+                            .skill(skill)
+                            .proficiencyLevel(level)
+                            .build());
                 }
             }
         }

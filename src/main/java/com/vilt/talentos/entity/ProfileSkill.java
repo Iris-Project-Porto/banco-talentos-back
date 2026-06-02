@@ -25,6 +25,7 @@ public class ProfileSkill {
     @JoinColumn(name = "skill_id", nullable = false)
     private Skill skill;
 
-    @Column
-    private String level;
+    @Column(name = "proficiency_level")
+    @Builder.Default
+    private Integer proficiencyLevel = 0;
 }

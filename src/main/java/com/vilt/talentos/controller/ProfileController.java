@@ -21,7 +21,7 @@ public class ProfileController {
 
     private final ProfileService profileService;
 
-    @GetMapping("/me")
+    @GetMapping
     @Operation(summary = "Buscar meu perfil")
     public Profile getMyProfile(Authentication auth) {
         return profileService.getByUserId(UUID.fromString(auth.getName()));
