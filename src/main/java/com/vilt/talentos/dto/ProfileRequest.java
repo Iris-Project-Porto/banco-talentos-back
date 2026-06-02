@@ -32,7 +32,10 @@ public record ProfileRequest(
     String linkedinUrl,
     String githubUrl,
 
+    String registrationNumber,
+    String registrationStatus,
+
     List<SkillEntry> skills
 ) {
-    public record SkillEntry(String name, String level) {}
+    public record SkillEntry(String name, Integer level) {}
 }

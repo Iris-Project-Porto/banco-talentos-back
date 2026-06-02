@@ -21,8 +21,10 @@ public record AdminUpdateRequest(
     String githubUrl,
     String availability,
     String codeReviewAtuacao,
+    String registrationNumber,
+    String registrationStatus,
     UUID groupId,
     List<SkillEntry> skills
 ) {
-    public record SkillEntry(String name, String level) {}
+    public record SkillEntry(String name, Integer level) {}
 }

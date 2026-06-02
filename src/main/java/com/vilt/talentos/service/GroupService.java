@@ -24,15 +24,23 @@ public class GroupService {
     private final UserRepository userRepo;
 
     public List<GroupResponse> findAllActive() {
-        return groupRepo.findByActive(true).stream()
+        List<GroupResponse> list = groupRepo.findByActive(true).stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
+        if (list.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Nenhum grupo ativo encontrado");
+        }
+        return list;
     }
 
     public List<GroupResponse> findAllInactive() {
-        return groupRepo.findByActive(false).stream()
+        List<GroupResponse> list = groupRepo.findByActive(false).stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
+        if (list.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Nenhum grupo inativo encontrado");
+        }
+        return list;
     }
 
     public GroupResponse findById(UUID id) {
