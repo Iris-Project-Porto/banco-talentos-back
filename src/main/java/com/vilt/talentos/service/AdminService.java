@@ -3,6 +3,7 @@ package com.vilt.talentos.service;
 import com.vilt.talentos.config.AppProperties;
 import com.vilt.talentos.dto.DashboardKpisResponse;
 import com.vilt.talentos.entity.ExperienceLevel;
+import com.vilt.talentos.entity.SkillType;
 import com.vilt.talentos.entity.User;
 import com.vilt.talentos.repository.ProfileRepository;
 import com.vilt.talentos.repository.UserRepository;
@@ -38,6 +39,7 @@ public class AdminService {
         // Visão 1: Skills mais dominadas pelos recursos (Soma dos níveis de proficiência)
         var skillsByProficiency = all.stream()
             .flatMap(p -> p.getSkills().stream())
+            .filter(ps -> ps.getSkill().getType() == SkillType.HARD)
             .collect(Collectors.groupingBy(
                 ps -> ps.getSkill().getName(),
                 Collectors.summingLong(ps -> ps.getProficiencyLevel() != null ? ps.getProficiencyLevel() : 0)
@@ -46,6 +48,7 @@ public class AdminService {
         // Visão 2: Skills mais estratégicas (Soma dos pesos de importância definidos pelos admins)
         var skillsByImportance = all.stream()
             .flatMap(p -> p.getSkills().stream())
+            .filter(ps -> ps.getSkill().getType() == SkillType.HARD)
             .collect(Collectors.groupingBy(
                 ps -> ps.getSkill().getName(),
                 Collectors.summingLong(ps -> ps.getSkill().getImportanceWeight() != null ? ps.getSkill().getImportanceWeight() : 1)

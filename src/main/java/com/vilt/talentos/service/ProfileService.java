@@ -3,6 +3,7 @@ package com.vilt.talentos.service;
 import com.vilt.talentos.config.AppProperties;
 import com.vilt.talentos.dto.AdminUpdateRequest;
 import com.vilt.talentos.dto.ProfileRequest;
+import com.vilt.talentos.dto.SkillEntry;
 import com.vilt.talentos.entity.*;
 import com.vilt.talentos.repository.*;
 import lombok.RequiredArgsConstructor;
@@ -13,6 +14,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -71,45 +73,8 @@ public class ProfileService {
         profile.setNivelScore(evaluation.score());
         profile.setNivelJustificativa(evaluation.justificativa());
 
-        // Reconciliação de skills: evita deletar e reinserir a mesma skill, o que causa erro de Unique Constraint
-        if (req.skills() != null) {
-            var requestSkills = req.skills().stream()
-                    .filter(s -> s.name() != null && !s.name().isBlank())
-                    .collect(java.util.stream.Collectors.toMap(
-                            s -> s.name().trim().toUpperCase(),
-                            s -> s,
-                            (existing, replacement) -> existing
-                    ));
-
-            // 1. Remove as que não estão mais no request
-            profile.getSkills().removeIf(ps -> 
-                !requestSkills.containsKey(ps.getSkill().getName().trim().toUpperCase())
-            );
-
-            // 2. Atualiza níveis das existentes ou Adiciona novas
-            for (var entry : requestSkills.values()) {
-                String name = entry.name().trim().toUpperCase();
-                Integer level = entry.level();
-
-                var existing = profile.getSkills().stream()
-                        .filter(ps -> ps.getSkill().getName().equalsIgnoreCase(name))
-                        .findFirst();
-
-                if (existing.isPresent()) {
-                    existing.get().setProficiencyLevel(level);
-                } else {
-                    var skill = skillRepo.findByName(name)
-                            .orElseGet(() -> skillRepo.save(Skill.builder().name(name).build()));                    
-                    profile.getSkills().add(ProfileSkill.builder()
-                            .profile(profile)
-                            .skill(skill)
-                            .proficiencyLevel(level)
-                            .build());
-                }
-            }
-        } else {
-            profile.getSkills().clear();
-        }
+        // Reconciliação de skills HARD (recursos só mexem em HARD)
+        reconcileSkills(profile, req.skills(), SkillType.HARD);
 
         Profile saved = profileRepo.save(profile);
 
@@ -138,6 +103,8 @@ public class ProfileService {
         if (profile.getRegistrationStatus() == RegistrationStatus.REJECTED) {
             profile.setRegistrationStatus(null);
         }
+        // Soft skills são visíveis apenas para admins
+        profile.getSkills().removeIf(ps -> ps.getSkill().getType() == SkillType.SOFT);
         return profile;
     }
 
@@ -201,39 +168,14 @@ public class ProfileService {
             userRepo.save(profile.getUser());
         }
 
+        // Reconciliação de skills HARD
         if (req.skills() != null) {
-            var requestSkills = req.skills().stream()
-                    .filter(s -> s.name() != null && !s.name().isBlank())
-                    .collect(java.util.stream.Collectors.toMap(
-                            s -> s.name().trim().toUpperCase(),
-                            s -> s,
-                            (existing, replacement) -> existing
-                    ));
+            reconcileSkills(profile, req.skills(), SkillType.HARD);
+        }
 
-            profile.getSkills().removeIf(ps -> 
-                !requestSkills.containsKey(ps.getSkill().getName().trim().toUpperCase())
-            );
-
-            for (var entry : requestSkills.values()) {
-                String name = entry.name().trim().toUpperCase();
-                Integer level = entry.level();
-                
-                var existing = profile.getSkills().stream()
-                        .filter(ps -> ps.getSkill().getName().equalsIgnoreCase(name))
-                        .findFirst();
-
-                if (existing.isPresent()) {
-                    existing.get().setProficiencyLevel(level);
-                } else {
-                    var skill = skillRepo.findByName(name)
-                            .orElseGet(() -> skillRepo.save(Skill.builder().name(name).build()));
-                    profile.getSkills().add(ProfileSkill.builder()
-                            .profile(profile)
-                            .skill(skill)
-                            .proficiencyLevel(level)
-                            .build());
-                }
-            }
+        // Reconciliação de skills SOFT (exclusivo Admin)
+        if (req.softSkills() != null) {
+            reconcileSkills(profile, req.softSkills(), SkillType.SOFT);
         }
 
         Profile saved = profileRepo.save(profile);
@@ -246,5 +188,56 @@ public class ProfileService {
         }
 
         return saved;
+    }
+
+    private void reconcileSkills(Profile profile, List<SkillEntry> entries, SkillType type) {
+        if (entries == null) return;
+
+        var requestSkills = entries.stream()
+                .filter(s -> s.name() != null && !s.name().isBlank())
+                .collect(Collectors.toMap(
+                        s -> s.name().trim().toUpperCase(),
+                        s -> s,
+                        (existing, replacement) -> existing
+                ));
+
+        // 1. Remove as que não estão mais no request (apenas do tipo especificado)
+        profile.getSkills().removeIf(ps -> 
+            ps.getSkill().getType() == type &&
+            !requestSkills.containsKey(ps.getSkill().getName().trim().toUpperCase())
+        );
+
+        // 2. Atualiza níveis das existentes ou Adiciona novas
+        for (var entry : requestSkills.values()) {
+            String name = entry.name().trim().toUpperCase();
+            Integer level = entry.level();
+
+            var existing = profile.getSkills().stream()
+                    .filter(ps -> ps.getSkill().getName().equalsIgnoreCase(name))
+                    .findFirst();
+
+            if (existing.isPresent()) {
+                existing.get().setProficiencyLevel(level);
+                // Garantir que o tipo está correto se a skill já existia no banco
+                if (existing.get().getSkill().getType() != type) {
+                    existing.get().getSkill().setType(type);
+                    skillRepo.save(existing.get().getSkill());
+                }
+            } else {
+                var skill = skillRepo.findByName(name)
+                        .orElseGet(() -> skillRepo.save(Skill.builder().name(name).type(type).build()));
+                
+                if (skill.getType() != type) {
+                    skill.setType(type);
+                    skillRepo.save(skill);
+                }
+
+                profile.getSkills().add(ProfileSkill.builder()
+                        .profile(profile)
+                        .skill(skill)
+                        .proficiencyLevel(level)
+                        .build());
+            }
+        }
     }
 }
