@@ -27,12 +27,18 @@ O sistema permite o cadastro e autenticação de colaboradores, gerenciamento de
 
 O projeto segue uma arquitetura em camadas:
 
-Controller
+Controller 
+
 ↓
+
 Service
+
 ↓
+
 Repository
+
 ↓
+
 Database
 
 Principais módulos:
@@ -144,8 +150,8 @@ Integração com Brevo para:
 
 # Estrutura do Projeto
 
+```text
 src/main/java/com/vilt/talentos
-
 ├── controller
 ├── service
 ├── repository
@@ -155,7 +161,7 @@ src/main/java/com/vilt/talentos
 ├── config
 ├── exception
 └── util
-
+```
 Principais controllers:
 
 - AuthController
@@ -235,45 +241,89 @@ http://localhost:8080/swagger-ui/index.html
 
 ## Autenticação
 
-POST   /api/auth/register
-POST   /api/auth/verify
-POST   /api/auth/login
-POST   /api/auth/forgot-password
-POST   /api/auth/reset-password
-
-## Perfil
-
-GET    /api/profile/me
-POST   /api/profile
-
-## Administração
-
-GET    /api/admin/dashboard
-GET    /api/admin/profiles
-GET    /api/admin/profiles/pendentes
-GET    /api/admin/profiles/ativos
-PATCH  /api/admin/profiles/{id}
-
-## Grupos
-
-GET    /api/v1/groups
-POST   /api/admin/groups
-PUT    /api/admin/groups/{id}
-PATCH  /api/admin/groups/{id}/activate
-PATCH  /api/admin/groups/{id}/inactivate
-
-## Formulários
-
-GET     /api/admin/forms
-POST    /api/admin/forms
-PUT     /api/admin/forms
-DELETE  /api/admin/forms/{id}
-
-GET     /api/forms/my-group
-POST    /api/forms/submissions
+| Método | Endpoint | Descrição |
+|----------|----------|----------|
+| POST | `/api/auth/register` | Registro de novo usuário |
+| POST | `/api/auth/verify` | Verificação de e-mail |
+| POST | `/api/auth/login` | Autenticação e geração de JWT |
+| POST | `/api/auth/forgot-password` | Solicita recuperação de senha |
+| POST | `/api/auth/reset-password` | Redefine a senha |
 
 ---
 
+## Perfil
+
+| Método | Endpoint | Descrição |
+|----------|----------|----------|
+| GET | `/api/profile/me` | Retorna perfil do usuário autenticado |
+| POST | `/api/profile` | Cria ou atualiza perfil |
+
+---
+
+## Administração - Perfis
+
+| Método | Endpoint | Descrição |
+|----------|----------|----------|
+| GET | `/api/admin/dashboard` | Dashboard administrativo |
+| GET | `/api/admin/profiles` | Lista todos os perfis |
+| GET | `/api/admin/profiles/pendentes` | Lista perfis pendentes |
+| GET | `/api/admin/profiles/ativos` | Lista perfis aprovados |
+| GET | `/api/admin/profiles/{id}` | Consulta perfil específico |
+| PATCH | `/api/admin/profiles/{id}` | Aprova, rejeita ou altera perfil |
+
+---
+
+## Administração - Usuários
+
+| Método | Endpoint | Descrição |
+|----------|----------|----------|
+| GET | `/api/admin/users/pending` | Lista administradores pendentes |
+| POST | `/api/admin/users/{id}/approve` | Aprova administrador |
+| POST | `/api/admin/users/{id}/reject` | Rejeita administrador |
+
+---
+
+## Grupos
+
+### Público
+
+| Método | Endpoint | Descrição |
+|----------|----------|----------|
+| GET | `/api/v1/groups` | Lista grupos ativos |
+
+### Administração
+
+| Método | Endpoint | Descrição |
+|----------|----------|----------|
+| GET | `/api/admin/groups/active` | Lista grupos ativos |
+| GET | `/api/admin/groups/inactive` | Lista grupos inativos |
+| POST | `/api/admin/groups` | Cria grupo |
+| PUT | `/api/admin/groups/{id}` | Atualiza grupo |
+| PATCH | `/api/admin/groups/{id}/activate` | Ativa grupo |
+| PATCH | `/api/admin/groups/{id}/inactivate` | Inativa grupo |
+
+---
+
+## Formulários
+
+### Administração
+
+| Método | Endpoint | Descrição |
+|----------|----------|----------|
+| GET | `/api/admin/forms` | Lista formulários |
+| POST | `/api/admin/forms` | Cria formulário |
+| PUT | `/api/admin/forms` | Atualiza formulário |
+| DELETE | `/api/admin/forms/{id}` | Remove formulário |
+
+### Usuário
+
+| Método | Endpoint | Descrição |
+|----------|----------|----------|
+| GET | `/api/forms/my-group` | Lista formulários disponíveis para o grupo |
+| POST | `/api/forms/submissions` | Envia respostas |
+| GET | `/api/forms/submissions/{id}` | Consulta submissão |
+
+---
 # Segurança
 
 A API utiliza:
