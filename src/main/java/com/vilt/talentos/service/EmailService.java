@@ -64,11 +64,11 @@ public class EmailService {
     }
 
     @Async
-    public void sendAdminNewProfileSubmissionEmail(List<String> adminEmails, String userName, String cargo, String nivelIA, String portalUrl) {
+    public void sendAdminNewProfileSubmissionEmail(List<String> adminEmails, String userName, String jobTitle, String experienceLevel, String portalUrl) {
         Map<String, Object> variables = Map.of(
             "userName", userName,
-            "cargo", cargo != null ? cargo : "Não informado",
-            "nivelIA", nivelIA != null ? nivelIA : "Não avaliado",
+            "cargo", jobTitle != null ? jobTitle : "Não informado",
+            "nivelIA", experienceLevel != null ? experienceLevel : "Não avaliado",
             "portalUrl", portalUrl
         );
         sendTemplatedEmail(adminEmails, "ÍRIS | Novo Perfil Pendente", "emails/admin-new-profile-submission", variables);

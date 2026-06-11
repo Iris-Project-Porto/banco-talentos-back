@@ -1,32 +1,35 @@
 package com.vilt.talentos.dto;
 
 import com.vilt.talentos.entity.ExperienceLevel;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-
+import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.List;
 import java.util.Map;
 
-@Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class DashboardKpisResponse {
-    private long total;
-    private long ativos;
-    private long pendentes;
-    private List<SkillKpi> topSkillsByProficiency;
-    private List<SkillKpi> topSkillsByImportance;
-    private Map<ExperienceLevel, Long> nivelCount;
-
-    @Data
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class SkillKpi {
-        private String name;
-        private Long score;
-    }
+@Schema(description = "KPIs do Dashboard")
+public record DashboardKpisResponse(
+    @Schema(description = "Total de usuários cadastrados")
+    long total,
+    
+    @Schema(description = "Usuários com perfil ATIVO")
+    long ativos,
+    
+    @Schema(description = "Usuários com perfil PENDENTE")
+    long pendentes,
+    
+    @Schema(description = "Top skills por proficiência (habilidade)")
+    List<SkillKpi> topSkillsByProficiency,
+    
+    @Schema(description = "Top skills por importância")
+    List<SkillKpi> topSkillsByImportance,
+    
+    @Schema(description = "Distribuição por nível de experiência")
+    Map<ExperienceLevel, Long> nivelCount
+) {
+    public record SkillKpi(
+        @Schema(description = "Nome da skill")
+        String name,
+        
+        @Schema(description = "Pontuação calculada")
+        Long score
+    ) {}
 }

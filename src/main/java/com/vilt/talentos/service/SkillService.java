@@ -3,46 +3,46 @@ package com.vilt.talentos.service;
 import com.vilt.talentos.dto.SkillRequest;
 import com.vilt.talentos.dto.SkillResponse;
 import com.vilt.talentos.entity.Skill;
+import com.vilt.talentos.exception.ConflictException;
+import com.vilt.talentos.exception.ResourceNotFoundException;
+import com.vilt.talentos.mapper.SkillMapper;
 import com.vilt.talentos.repository.SkillRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
-import org.springframework.web.server.ResponseStatusException;
 
-import java.util.List;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class SkillService {
 
     private final SkillRepository skillRepo;
+    private final SkillMapper mapper;
 
-    public List<SkillResponse> findAllActive() {
-        List<SkillResponse> list = skillRepo.findByActive(true).stream()
-                .map(this::mapToResponse)
-                .collect(Collectors.toList());
-        if (list.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Nenhuma skill ativa encontrada");
+    public Page<SkillResponse> findAllActive(Pageable pageable) {
+        Page<SkillResponse> page = skillRepo.findByActive(true, pageable)
+                .map(mapper::toResponse);
+        if (page.isEmpty()) {
+            throw new ResourceNotFoundException("Nenhuma skill ativa encontrada.");
         }
-        return list;
+        return page;
     }
 
-    public List<SkillResponse> findAllInactive() {
-        List<SkillResponse> list = skillRepo.findByActive(false).stream()
-                .map(this::mapToResponse)
-                .collect(Collectors.toList());
-        if (list.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Nenhuma skill inativa encontrada");
+    public Page<SkillResponse> findAllInactive(Pageable pageable) {
+        Page<SkillResponse> page = skillRepo.findByActive(false, pageable)
+                .map(mapper::toResponse);
+        if (page.isEmpty()) {
+            throw new ResourceNotFoundException("Nenhuma skill inativa encontrada.");
         }
-        return list;
+        return page;
     }
 
     public SkillResponse findById(UUID id) {
         return skillRepo.findById(id)
-                .map(this::mapToResponse)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Skill não encontrada"));
+                .map(mapper::toResponse)
+                .orElseThrow(() -> new ResourceNotFoundException("Skill não encontrada"));
     }
 
     public SkillResponse create(SkillRequest request) {
@@ -53,51 +53,40 @@ public class SkillService {
                     if (!existing.isActive()) {
                         existing.setActive(true);
                         existing.setImportanceWeight(request.importanceWeight() != null ? request.importanceWeight() : 1);
-                        return mapToResponse(skillRepo.save(existing));
+                        return mapper.toResponse(skillRepo.save(existing));
                     }
-                    return mapToResponse(existing);
+                    return mapper.toResponse(existing);
                 })
                 .orElseGet(() -> {
-                    Skill skill = Skill.builder()
-                            .name(nameUpper)
-                            .type(request.type())
-                            .importanceWeight(request.importanceWeight() != null ? request.importanceWeight() : 1)
-                            .active(true)
-                            .build();
-                    return mapToResponse(skillRepo.save(skill));
+                    Skill skill = mapper.toEntity(request);
+                    skill.setName(nameUpper);
+                    return mapper.toResponse(skillRepo.save(skill));
                 });
     }
 
     public SkillResponse update(UUID id, SkillRequest request) {
         Skill skill = skillRepo.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Skill não encontrada"));
+                .orElseThrow(() -> new ResourceNotFoundException("Skill não encontrada"));
         
         String nameUpper = request.name().trim().toUpperCase();
         
         skillRepo.findByName(nameUpper)
                 .ifPresent(existing -> {
                     if (!existing.getId().equals(id)) {
-                        throw new ResponseStatusException(HttpStatus.CONFLICT, "Já existe outra skill com este nome");
+                        throw new ConflictException("Já existe outra skill com este nome");
                     }
                 });
 
+        mapper.updateEntity(request, skill);
         skill.setName(nameUpper);
-        skill.setType(request.type());
-        if (request.importanceWeight() != null) {
-            skill.setImportanceWeight(request.importanceWeight());
-        }
         
-        return mapToResponse(skillRepo.save(skill));
+        return mapper.toResponse(skillRepo.save(skill));
     }
 
     public void setActiveStatus(UUID id, boolean active) {
         Skill skill = skillRepo.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Skill não encontrada"));
+                .orElseThrow(() -> new ResourceNotFoundException("Skill não encontrada"));
         skill.setActive(active);
         skillRepo.save(skill);
-    }
-
-    private SkillResponse mapToResponse(Skill s) {
-        return new SkillResponse(s.getId(), s.getName(), s.getType(), s.isActive(), s.getImportanceWeight());
     }
 }

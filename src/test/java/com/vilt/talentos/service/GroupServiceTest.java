@@ -4,6 +4,9 @@ import com.vilt.talentos.dto.GroupRequest;
 import com.vilt.talentos.dto.GroupResponse;
 import com.vilt.talentos.entity.Group;
 import com.vilt.talentos.entity.User;
+import com.vilt.talentos.exception.ResourceNotFoundException;
+import com.vilt.talentos.exception.UnauthorizedException;
+import com.vilt.talentos.mapper.GroupMapper;
 import com.vilt.talentos.repository.GroupRepository;
 import com.vilt.talentos.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -15,8 +18,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.web.server.ResponseStatusException;
 
+import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -32,6 +35,9 @@ class GroupServiceTest {
 
     @Mock
     private UserRepository userRepo;
+
+    @Mock
+    private GroupMapper mapper;
 
     @InjectMocks
     private GroupService groupService;
@@ -56,12 +62,13 @@ class GroupServiceTest {
     @DisplayName("Deve criar um grupo com sucesso")
     void create_Success() {
         GroupRequest request = new GroupRequest("Novos Talentos", "Grupo para novos contratados");
+        Group group = Group.builder().name(request.name()).description(request.description()).active(true).build();
+        GroupResponse expectedResponse = new GroupResponse(UUID.randomUUID(), request.name(), request.description(), true, Instant.now(), null, "Test User", null);
+
         when(userRepo.findById(userId)).thenReturn(Optional.of(mockUser));
-        when(groupRepo.save(any(Group.class))).thenAnswer(i -> {
-            Group g = i.getArgument(0);
-            g.setId(UUID.randomUUID());
-            return g;
-        });
+        when(mapper.toEntity(request)).thenReturn(group);
+        when(groupRepo.save(any(Group.class))).thenReturn(group);
+        when(mapper.toResponse(any(Group.class))).thenReturn(expectedResponse);
 
         GroupResponse response = groupService.create(request);
 
@@ -84,16 +91,19 @@ class GroupServiceTest {
                 .build();
 
         GroupRequest updateRequest = new GroupRequest("Novo Nome", "Nova Desc");
+        GroupResponse expectedResponse = new GroupResponse(groupId, "Novo Nome", "Nova Desc", true, Instant.now(), Instant.now(), "Admin", "Test User");
         
         when(groupRepo.findById(groupId)).thenReturn(Optional.of(existingGroup));
         when(userRepo.findById(userId)).thenReturn(Optional.of(mockUser));
         when(groupRepo.save(any(Group.class))).thenReturn(existingGroup);
+        when(mapper.toResponse(any(Group.class))).thenReturn(expectedResponse);
 
         GroupResponse response = groupService.update(groupId, updateRequest);
 
         assertEquals("Novo Nome", response.name());
         assertEquals("Nova Desc", response.description());
         assertEquals("Test User", response.updatedBy());
+        verify(mapper).updateEntity(eq(updateRequest), eq(existingGroup));
     }
 
     @Test
@@ -102,7 +112,7 @@ class GroupServiceTest {
         UUID randomId = UUID.randomUUID();
         when(groupRepo.findById(randomId)).thenReturn(Optional.empty());
 
-        assertThrows(ResponseStatusException.class, () -> groupService.findById(randomId));
+        assertThrows(ResourceNotFoundException.class, () -> groupService.findById(randomId));
     }
 
     @Test
@@ -127,7 +137,7 @@ class GroupServiceTest {
         GroupRequest request = new GroupRequest("Novo", "Desc");
         when(groupRepo.findById(groupId)).thenReturn(Optional.empty());
 
-        assertThrows(ResponseStatusException.class, () -> groupService.update(groupId, request));
+        assertThrows(ResourceNotFoundException.class, () -> groupService.update(groupId, request));
     }
 
     @Test
@@ -136,7 +146,6 @@ class GroupServiceTest {
         when(userRepo.findById(userId)).thenReturn(Optional.empty());
         GroupRequest request = new GroupRequest("Novo", "Desc");
 
-        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> groupService.create(request));
-        assertEquals(401, ex.getStatusCode().value());
+        assertThrows(UnauthorizedException.class, () -> groupService.create(request));
     }
 }

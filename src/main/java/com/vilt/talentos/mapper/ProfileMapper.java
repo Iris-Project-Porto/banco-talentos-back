@@ -1,0 +1,56 @@
+package com.vilt.talentos.mapper;
+
+import com.vilt.talentos.dto.AdminUpdateRequest;
+import com.vilt.talentos.dto.ProfileRequest;
+import com.vilt.talentos.entity.Profile;
+import org.mapstruct.*;
+
+@Mapper(componentModel = "spring", builder = @Builder(disableBuilder = true))
+public interface ProfileMapper {
+
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "user", ignore = true)
+    @Mapping(target = "status", ignore = true)
+    @Mapping(target = "level", ignore = true)
+    @Mapping(target = "levelScore", ignore = true)
+    @Mapping(target = "levelJustification", ignore = true)
+    @Mapping(target = "skills", ignore = true)
+    @Mapping(target = "createdAt", ignore = true)
+    @Mapping(target = "updatedAt", ignore = true)
+    @Mapping(target = "createdBy", ignore = true)
+    @Mapping(target = "updatedBy", ignore = true)
+    @Mapping(target = "levelOverride", ignore = true)
+    @Mapping(target = "registrationStatus", ignore = true)
+    Profile toEntity(ProfileRequest request);
+
+    @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "user", ignore = true)
+    @Mapping(target = "status", ignore = true)
+    @Mapping(target = "level", ignore = true)
+    @Mapping(target = "levelScore", ignore = true)
+    @Mapping(target = "levelJustification", ignore = true)
+    @Mapping(target = "skills", ignore = true)
+    @Mapping(target = "createdAt", ignore = true)
+    @Mapping(target = "updatedAt", ignore = true)
+    @Mapping(target = "createdBy", ignore = true)
+    @Mapping(target = "updatedBy", ignore = true)
+    @Mapping(target = "levelOverride", ignore = true)
+    @Mapping(target = "registrationStatus", ignore = true)
+    void updateEntity(ProfileRequest request, @MappingTarget Profile entity);
+
+    @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "user", ignore = true)
+    @Mapping(target = "status", ignore = true)
+    @Mapping(target = "level", ignore = true)
+    @Mapping(target = "levelScore", ignore = true)
+    @Mapping(target = "levelJustification", ignore = true)
+    @Mapping(target = "skills", ignore = true)
+    @Mapping(target = "createdAt", ignore = true)
+    @Mapping(target = "updatedAt", ignore = true)
+    @Mapping(target = "createdBy", ignore = true)
+    @Mapping(target = "updatedBy", ignore = true)
+    @Mapping(target = "registrationStatus", ignore = true)
+    void updateEntityFromAdmin(AdminUpdateRequest request, @MappingTarget Profile entity);
+}

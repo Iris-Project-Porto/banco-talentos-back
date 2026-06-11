@@ -1,6 +1,7 @@
 package com.vilt.talentos.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.vilt.talentos.entity.DomainStatus;
 import com.vilt.talentos.entity.ExperienceLevel;
 
 import java.time.Instant;
@@ -20,7 +21,7 @@ public record JobPostingResponse(
         String recruiter,
         Integer estimatedAllocationWeeks,
 
-        String status,
+        DomainStatus status,
         String notes,
         Instant openingDate,
         Boolean isUrgent,
