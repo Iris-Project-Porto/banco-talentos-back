@@ -1,5 +1,6 @@
 package com.vilt.talentos.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -9,6 +10,7 @@ import java.util.UUID;
 @Entity
 @Table(name = "job_postings")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class JobPosting extends BaseAuditableEntity {
 
     @Id

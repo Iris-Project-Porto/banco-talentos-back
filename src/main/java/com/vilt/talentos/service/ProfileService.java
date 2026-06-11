@@ -42,18 +42,16 @@ public class ProfileService {
         var profile = profileRepo.findByUserId(userId).orElseGet(() -> Profile.builder()
                 .user(user).status(DomainStatus.PENDING).build());
 
-        // Se o perfil era novo ou estava inativo, e agora está sendo submetido, garantimos status PENDENTE
-        boolean isNewSubmission = DomainStatus.ACTIVE != profile.getStatus();
-        if (isNewSubmission) {
-            profile.setStatus(DomainStatus.PENDING);
-        }
+        // Toda submissão pelo recurso deve passar por revisão (status PENDENTE)
+        boolean wasActive = DomainStatus.ACTIVE == profile.getStatus();
+        profile.setStatus(DomainStatus.PENDING);
 
         profileMapper.updateEntity(req, profile);
         
-        // Lógica de Matrícula para o Recurso
+        // Lógica de Matrícula para o Recurso: envia para revisão administrativa
         if (req.registrationNumber() != null && !req.registrationNumber().isBlank()) {
             profile.setRegistrationNumber(req.registrationNumber());
-            profile.setRegistrationStatus(RegistrationStatus.APPROVED);
+            profile.setRegistrationStatus(RegistrationStatus.AWAITING_APPROVAL);
         }
 
         profile.setLevel(evaluation.nivel().name());
@@ -65,8 +63,8 @@ public class ProfileService {
 
         Profile saved = profileRepo.save(profile);
 
-        // Notificar admins se for uma submissão pendente
-        if (isNewSubmission) {
+        // Notificar admins se o perfil foi submetido (se estava ATIVO ou se é novo)
+        if (wasActive || profileRepo.findByUserId(userId).isEmpty()) {
             List<String> adminEmails = userRepo.findAllByRoleAndStatus(UserRole.ADMIN, DomainStatus.ACTIVE, Pageable.unpaged())
                     .getContent().stream().map(User::getEmail).toList();
             if (!adminEmails.isEmpty()) {

@@ -1,6 +1,7 @@
 package com.vilt.talentos.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -10,6 +11,7 @@ import java.util.UUID;
 @Table(name = "profile_skills",
        uniqueConstraints = @UniqueConstraint(columnNames = {"profile_id", "skill_id"}))
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class ProfileSkill extends BaseAuditableEntity {
 
     @Id

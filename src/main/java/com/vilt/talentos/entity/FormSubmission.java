@@ -1,7 +1,7 @@
 package com.vilt.talentos.entity;
 
-import com.vilt.talentos.dto.FormSubmissionRequest;
 import com.vilt.talentos.dto.FormSubmissionUpdateRequest;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
@@ -20,6 +20,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @EqualsAndHashCode(callSuper = false, of="id")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class FormSubmission extends BaseAuditableEntity {
 
     @Id
