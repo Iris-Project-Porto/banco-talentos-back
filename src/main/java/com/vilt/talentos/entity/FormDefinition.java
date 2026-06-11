@@ -1,5 +1,6 @@
 package com.vilt.talentos.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;
@@ -15,6 +16,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @EqualsAndHashCode(callSuper = false, of="id")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class FormDefinition extends BaseAuditableEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
