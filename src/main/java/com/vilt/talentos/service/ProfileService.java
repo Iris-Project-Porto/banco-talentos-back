@@ -5,12 +5,15 @@ import com.vilt.talentos.dto.AdminUpdateRequest;
 import com.vilt.talentos.dto.ProfileRequest;
 import com.vilt.talentos.dto.SkillEntry;
 import com.vilt.talentos.entity.*;
+import com.vilt.talentos.exception.BadRequestException;
+import com.vilt.talentos.exception.ResourceNotFoundException;
+import com.vilt.talentos.mapper.ProfileMapper;
 import com.vilt.talentos.repository.*;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.UUID;
@@ -27,41 +30,25 @@ public class ProfileService {
     private final TalentEvaluationService evaluationService;
     private final EmailService emailService;
     private final AppProperties appProperties;
+    private final ProfileMapper profileMapper;
 
     @Transactional
     public Profile createOrUpdate(UUID userId, ProfileRequest req) {
         var user = userRepo.findById(userId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado."));
 
         var evaluation = evaluationService.evaluate(req);
 
         var profile = profileRepo.findByUserId(userId).orElseGet(() -> Profile.builder()
-                .user(user).status("PENDENTE").build());
+                .user(user).status(DomainStatus.PENDING).build());
 
         // Se o perfil era novo ou estava inativo, e agora está sendo submetido, garantimos status PENDENTE
-        boolean isNewSubmission = !"ATIVO".equals(profile.getStatus());
+        boolean isNewSubmission = DomainStatus.ACTIVE != profile.getStatus();
         if (isNewSubmission) {
-            profile.setStatus("PENDENTE");
+            profile.setStatus(DomainStatus.PENDING);
         }
 
-        profile.setPhotoUrl(req.photoUrl());
-        profile.setCargo(req.cargo());
-        profile.setArea(req.area());
-        profile.setSobre(req.sobre());
-        profile.setProntidaoStack(req.prontidaoStack());
-        profile.setAlocacaoStatus(req.alocacaoStatus());
-        profile.setNivelMentoria(req.nivelMentoria());
-        profile.setAutonomia(req.autonomia());
-        profile.setTrilhaCarreira(req.trilhaCarreira());
-        profile.setCertificacoesCount(req.certificacoesCount());
-        profile.setNivelAcompanhamento(req.nivelAcompanhamento());
-        profile.setExperienceYears(req.experienceYears());
-        profile.setProjectsCount(req.projectsCount());
-        profile.setAvailability(req.availability());
-        profile.setCertifications(req.certifications());
-        profile.setLinkedinUrl(req.linkedinUrl());
-        profile.setGithubUrl(req.githubUrl());
-        profile.setCodeReviewAtuacao(req.codeReviewAtuacao());
+        profileMapper.updateEntity(req, profile);
         
         // Lógica de Matrícula para o Recurso
         if (req.registrationNumber() != null && !req.registrationNumber().isBlank()) {
@@ -69,9 +56,9 @@ public class ProfileService {
             profile.setRegistrationStatus(RegistrationStatus.APPROVED);
         }
 
-        profile.setNivel(evaluation.nivel().name());
-        profile.setNivelScore(evaluation.score());
-        profile.setNivelJustificativa(evaluation.justificativa());
+        profile.setLevel(evaluation.nivel().name());
+        profile.setLevelScore(evaluation.score());
+        profile.setLevelJustification(evaluation.justificativa());
 
         // Reconciliação de skills HARD (recursos só mexem em HARD)
         reconcileSkills(profile, req.skills(), SkillType.HARD);
@@ -80,11 +67,11 @@ public class ProfileService {
 
         // Notificar admins se for uma submissão pendente
         if (isNewSubmission) {
-            List<String> adminEmails = userRepo.findAllByRoleAndStatus(User.Role.ADMIN, User.Status.ACTIVE)
-                    .stream().map(User::getEmail).toList();
+            List<String> adminEmails = userRepo.findAllByRoleAndStatus(UserRole.ADMIN, DomainStatus.ACTIVE, Pageable.unpaged())
+                    .getContent().stream().map(User::getEmail).toList();
             if (!adminEmails.isEmpty()) {
                 emailService.sendAdminNewProfileSubmissionEmail(
-                    adminEmails, user.getName(), saved.getCargo(), saved.getNivel(), appProperties.getUrl()
+                    adminEmails, user.getName(), saved.getJobTitle(), saved.getLevel(), appProperties.getUrl()
                 );
             }
         }
@@ -94,7 +81,7 @@ public class ProfileService {
 
     public Profile getByUserId(UUID userId) {
         Profile profile = profileRepo.findByUserId(userId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Perfil não encontrado para o usuário"));
+                .orElseThrow(() -> new ResourceNotFoundException("Perfil não encontrado para o usuário"));
         
         return sanitizeProfileForResource(profile);
     }
@@ -110,49 +97,42 @@ public class ProfileService {
 
     public Profile getById(UUID id) {
         return profileRepo.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Perfil não encontrado"));
+                .orElseThrow(() -> new ResourceNotFoundException("Perfil não encontrado"));
     }
 
-    public List<Profile> getByStatus(String status) {
-        List<Profile> list = profileRepo.findByStatus(status);
-        if (list.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Nenhum perfil encontrado com o status: " + status);
+    public Page<Profile> getByStatus(DomainStatus status, Pageable pageable) {
+        Page<Profile> page = profileRepo.findByStatus(status, pageable);
+        if (page.isEmpty()) {
+            throw new ResourceNotFoundException("No profiles found with status: " + status);
         }
-        return list;
+        return page;
     }
 
-    public List<Profile> getAll() {
-        List<Profile> list = profileRepo.findAll();
-        if (list.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Nenhum perfil encontrado");
+    public Page<Profile> getAll(Pageable pageable) {
+        Page<Profile> page = profileRepo.findAll(pageable);
+        if (page.isEmpty()) {
+            throw new ResourceNotFoundException("No profiles found");
         }
-        return list;
+        return page;
     }
 
     @Transactional
     public Profile adminUpdate(UUID profileId, AdminUpdateRequest req) {
         var profile = profileRepo.findById(profileId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> new ResourceNotFoundException("Perfil não encontrado"));
         
-        String oldStatus = profile.getStatus();
+        DomainStatus oldStatus = profile.getStatus();
         
-        if (req.status() != null) profile.setStatus(req.status());
-        if (req.nivelOverride() != null) profile.setNivelOverride("".equals(req.nivelOverride()) ? null : req.nivelOverride());
-        if (req.cargo() != null) profile.setCargo(req.cargo());
-        if (req.area() != null) profile.setArea(req.area());
-        if (req.sobre() != null) profile.setSobre(req.sobre());
-        if (req.prontidaoStack() != null) profile.setProntidaoStack(req.prontidaoStack());
-        if (req.alocacaoStatus() != null) profile.setAlocacaoStatus(req.alocacaoStatus());
-        if (req.nivelMentoria() != null) profile.setNivelMentoria(req.nivelMentoria());
-        if (req.autonomia() != null) profile.setAutonomia(req.autonomia());
-        if (req.trilhaCarreira() != null) profile.setTrilhaCarreira(req.trilhaCarreira());
-        if (req.certificacoesCount() != null) profile.setCertificacoesCount(req.certificacoesCount());
-        if (req.nivelAcompanhamento() != null) profile.setNivelAcompanhamento(req.nivelAcompanhamento());
-        if (req.linkedinUrl() != null) profile.setLinkedinUrl(req.linkedinUrl());
-        if (req.githubUrl() != null) profile.setGithubUrl(req.githubUrl());
-        if (req.availability() != null) profile.setAvailability(req.availability());
-        if (req.codeReviewAtuacao() != null) profile.setCodeReviewAtuacao(req.codeReviewAtuacao());
-        if (req.registrationNumber() != null) profile.setRegistrationNumber(req.registrationNumber());
+        if (req.status() != null) {
+            try {
+                profile.setStatus(DomainStatus.valueOf(req.status()));
+            } catch (IllegalArgumentException e) {
+                // Keep old status or handle error
+            }
+        }
+
+        profileMapper.updateEntityFromAdmin(req, profile);
+
         if (req.registrationStatus() != null) {
             try {
                 profile.setRegistrationStatus(RegistrationStatus.valueOf(req.registrationStatus()));
@@ -163,7 +143,7 @@ public class ProfileService {
 
         if (req.groupId() != null) {
             var group = groupRepo.findById(req.groupId())
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Group not found"));
+                    .orElseThrow(() -> new BadRequestException("Group not found"));
             profile.getUser().setGroup(group);
             userRepo.save(profile.getUser());
         }
@@ -180,8 +160,9 @@ public class ProfileService {
 
         Profile saved = profileRepo.save(profile);
 
+
         // Se o status mudou para ATIVO, notifica o colaborador
-        if ("ATIVO".equals(saved.getStatus()) && !"ATIVO".equals(oldStatus)) {
+        if (DomainStatus.ACTIVE == saved.getStatus() && DomainStatus.ACTIVE != oldStatus) {
             emailService.sendResourceProfileApprovedEmail(
                 saved.getUser().getEmail(), saved.getUser().getName(), appProperties.getUrl()
             );
@@ -210,7 +191,7 @@ public class ProfileService {
         // 2. Atualiza níveis das existentes ou Adiciona novas
         for (var entry : requestSkills.values()) {
             String name = entry.name().trim().toUpperCase();
-            Integer level = entry.level();
+            Integer level = entry.proficiencyLevel();
 
             var existing = profile.getSkills().stream()
                     .filter(ps -> ps.getSkill().getName().equalsIgnoreCase(name))

@@ -1,6 +1,7 @@
 package com.vilt.talentos.repository;
 
 import com.vilt.talentos.entity.FormDefinition;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -9,5 +10,10 @@ import java.util.UUID;
 
 @Repository
 public interface FormDefinitionRepository extends JpaRepository<FormDefinition, UUID> {
-    List<FormDefinition> findAllByGroupId(UUID groupId);
+    @EntityGraph(attributePaths = {"group"})
+    List<FormDefinition> findAllByGroup_Id(UUID groupId);
+
+    @Override
+    @EntityGraph(attributePaths = {"group"})
+    List<FormDefinition> findAll();
 }

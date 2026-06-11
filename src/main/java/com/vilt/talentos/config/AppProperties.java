@@ -11,4 +11,5 @@ import org.springframework.context.annotation.Configuration;
 public class AppProperties {
     private String url;
     private java.util.List<String> allowedOrigins;
+    private String allowedEmailDomain;
 }

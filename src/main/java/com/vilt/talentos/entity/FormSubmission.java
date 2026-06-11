@@ -6,59 +6,53 @@ import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
+import lombok.Setter;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
-import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
 
 @Table(name = "form_submissions")
 @Entity(name = "FormSubmission")
 @Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@EqualsAndHashCode(of="id")
-public class FormSubmission {
+@EqualsAndHashCode(callSuper = false, of="id")
+public class FormSubmission extends BaseAuditableEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @Column(name = "form_definition_id")
-    private UUID formDefinitionId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "form_definition_id")
+    private FormDefinition formDefinition;
 
-    @Column(name = "user_id")
-    private UUID userId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    private User user;
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "answers", columnDefinition = "jsonb")
     private Map<String, Object> answers;
 
-    @UpdateTimestamp
-    @Column(name = "updated_at")
-    private Instant updatedAt;
-
-    public FormSubmission(FormSubmissionRequest form,UUID userId) {
-        this.formDefinitionId = form.formDefinitionId();
-        this.userId = userId;
-        this.answers = form.answers();
-    }
-
-    public FormSubmission(UUID formDefinitionId, UUID userId, Map<String, Object> answers) {
-        this.formDefinitionId = formDefinitionId;
-        this.userId = userId;
+    public FormSubmission(FormDefinition formDefinition, User user, Map<String, Object> answers) {
+        this.formDefinition = formDefinition;
+        this.user = user;
         this.answers = answers;
     }
 
-    public void atualizarInformacoes(FormSubmissionUpdateRequest dados){
-        if(dados.formDefinitionId()!=null){
-            this.formDefinitionId=dados.formDefinitionId();
-        }if(dados.userId()!=null){
-            this.userId=dados.userId();
-        }if(dados.answers()!=null){
-            this.answers=dados.answers();
+    public void updateInformation(FormSubmissionUpdateRequest data, FormDefinition formDefinition, User user){
+        if(formDefinition != null){
+            this.formDefinition = formDefinition;
+        }
+        if(user != null){
+            this.user = user;
+        }
+        if(data.answers() != null){
+            this.answers = data.answers();
         }
     }
 }

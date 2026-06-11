@@ -9,7 +9,7 @@ import java.util.UUID;
 public record FormSubmissionUpdateRequest(UUID id, UUID formDefinitionId, UUID userId, Map<String, Object> answers, Instant updatedAt) {
 
     public FormSubmissionUpdateRequest(FormSubmission formSubmission) {
-        this(formSubmission.getId(),formSubmission.getFormDefinitionId(),formSubmission.getUserId(),formSubmission.getAnswers(),formSubmission.getUpdatedAt());
+        this(formSubmission.getId(), formSubmission.getFormDefinition().getId(), formSubmission.getUser().getId(), formSubmission.getAnswers(), formSubmission.getUpdatedAt());
     }
 
 }

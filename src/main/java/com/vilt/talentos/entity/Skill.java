@@ -8,7 +8,7 @@ import java.util.UUID;
 @Entity
 @Table(name = "skills")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
-public class Skill {
+public class Skill extends BaseAuditableEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
