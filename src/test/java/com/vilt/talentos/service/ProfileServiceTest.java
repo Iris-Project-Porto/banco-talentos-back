@@ -3,6 +3,7 @@ package com.vilt.talentos.service;
 import com.vilt.talentos.config.AppProperties;
 import com.vilt.talentos.dto.ProfileRequest;
 import com.vilt.talentos.entity.DomainStatus;
+import com.vilt.talentos.entity.ExperienceLevel;
 import com.vilt.talentos.entity.Profile;
 import com.vilt.talentos.entity.RegistrationStatus;
 import com.vilt.talentos.entity.User;
@@ -56,7 +57,7 @@ class ProfileServiceTest {
 
         when(userRepo.findById(userId)).thenReturn(Optional.of(user));
         when(profileRepo.findByUserId(userId)).thenReturn(Optional.of(profile));
-        when(evaluationService.evaluate(any())).thenReturn(new TalentEvaluationService.EvaluationResult(TalentEvaluationService.Nivel.PLENO, 50, "Justification"));
+        when(evaluationService.evaluate(any())).thenReturn(new TalentEvaluationService.Evaluation(ExperienceLevel.PLENO, 50, "Justification"));
         when(profileRepo.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
         Profile result = profileService.createOrUpdate(userId, req);
@@ -73,7 +74,7 @@ class ProfileServiceTest {
 
         when(userRepo.findById(userId)).thenReturn(Optional.of(user));
         when(profileRepo.findByUserId(userId)).thenReturn(Optional.of(profile));
-        when(evaluationService.evaluate(any())).thenReturn(new TalentEvaluationService.EvaluationResult(TalentEvaluationService.Nivel.PLENO, 50, "Justification"));
+        when(evaluationService.evaluate(any())).thenReturn(new TalentEvaluationService.Evaluation(ExperienceLevel.PLENO, 50, "Justification"));
         when(profileRepo.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
         Profile result = profileService.createOrUpdate(userId, req);
