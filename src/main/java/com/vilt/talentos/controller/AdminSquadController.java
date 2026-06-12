@@ -8,14 +8,16 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/admin/squads")
+@RequestMapping("/api/v1/admin/squads")
 @RequiredArgsConstructor
 @Tag(name = "Admin Squads", description = "Gerenciamento de squads — requer role ADMIN")
 @SecurityRequirement(name = "bearerAuth")
@@ -25,14 +27,14 @@ public class AdminSquadController {
 
     @GetMapping("/active")
     @Operation(summary = "Listar squads ativas (Admin)")
-    public List<SquadResponse> listActive() {
-        return squadService.findAllActive();
+    public Page<SquadResponse> listActive(@PageableDefault(size = 20) Pageable pageable) {
+        return squadService.findAllActive(pageable);
     }
 
     @GetMapping("/inactive")
     @Operation(summary = "Listar squads inativas (Admin)")
-    public List<SquadResponse> listInactive() {
-        return squadService.findAllInactive();
+    public Page<SquadResponse> listInactive(@PageableDefault(size = 20) Pageable pageable) {
+        return squadService.findAllInactive(pageable);
     }
 
     @GetMapping("/{id}")

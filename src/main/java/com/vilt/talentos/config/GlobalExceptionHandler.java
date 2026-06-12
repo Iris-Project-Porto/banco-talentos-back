@@ -1,6 +1,7 @@
 package com.vilt.talentos.config;
 
 import com.vilt.talentos.dto.ApiError;
+import com.vilt.talentos.exception.BusinessException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
@@ -15,6 +16,16 @@ import java.util.stream.Collectors;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    @ExceptionHandler(BusinessException.class)
+    public ResponseEntity<ApiError> handleBusinessException(BusinessException ex) {
+        ApiError error = new ApiError(
+            ex.getStatus().value(),
+            ex.getMessage(),
+            Instant.now()
+        );
+        return new ResponseEntity<>(error, ex.getStatus());
+    }
 
     @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
     public ResponseEntity<ApiError> handleHttpMediaTypeNotSupportedException(HttpMediaTypeNotSupportedException ex) {

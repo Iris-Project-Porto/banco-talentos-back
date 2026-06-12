@@ -4,17 +4,18 @@ import com.vilt.talentos.dto.ProjectRequest;
 import com.vilt.talentos.dto.ProjectResponse;
 import com.vilt.talentos.entity.Project;
 import com.vilt.talentos.entity.User;
+import com.vilt.talentos.exception.ResourceNotFoundException;
+import com.vilt.talentos.exception.UnauthorizedException;
+import com.vilt.talentos.mapper.ProjectMapper;
 import com.vilt.talentos.repository.ProjectRepository;
 import com.vilt.talentos.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
-import org.springframework.web.server.ResponseStatusException;
 
-import java.util.List;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -22,79 +23,60 @@ public class ProjectService {
 
     private final ProjectRepository projectRepo;
     private final UserRepository userRepo;
+    private final ProjectMapper mapper;
 
-    public List<ProjectResponse> findAllActive() {
-        List<ProjectResponse> list = projectRepo.findByActive(true).stream()
-                .map(this::mapToResponse)
-                .collect(Collectors.toList());
-        if (list.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Nenhum projeto ativo encontrado");
+    public Page<ProjectResponse> findAllActive(Pageable pageable) {
+        Page<ProjectResponse> page = projectRepo.findByActive(true, pageable)
+                .map(mapper::toResponse);
+        if (page.isEmpty()) {
+            throw new ResourceNotFoundException("Nenhum projeto ativo encontrado");
         }
-        return list;
+        return page;
     }
 
-    public List<ProjectResponse> findAllInactive() {
-        List<ProjectResponse> list = projectRepo.findByActive(false).stream()
-                .map(this::mapToResponse)
-                .collect(Collectors.toList());
-        if (list.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Nenhum projeto inativo encontrado");
+    public Page<ProjectResponse> findAllInactive(Pageable pageable) {
+        Page<ProjectResponse> page = projectRepo.findByActive(false, pageable)
+                .map(mapper::toResponse);
+        if (page.isEmpty()) {
+            throw new ResourceNotFoundException("Nenhum projeto inativo encontrado");
         }
-        return list;
+        return page;
     }
 
     public ProjectResponse findById(UUID id) {
         return projectRepo.findById(id)
-                .map(this::mapToResponse)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Projeto não encontrado"));
+                .map(mapper::toResponse)
+                .orElseThrow(() -> new ResourceNotFoundException("Projeto não encontrado"));
     }
 
     public ProjectResponse create(ProjectRequest request) {
         User currentUser = getCurrentUser();
-        Project project = Project.builder()
-                .name(request.name())
-                .description(request.description())
-                .active(true)
-                .createdBy(currentUser)
-                .build();
-        return mapToResponse(projectRepo.save(project));
+        Project project = mapper.toEntity(request);
+        project.setCreatedBy(currentUser);
+        return mapper.toResponse(projectRepo.save(project));
     }
 
     public ProjectResponse update(UUID id, ProjectRequest request) {
         Project project = projectRepo.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Projeto não encontrado"));
+                .orElseThrow(() -> new ResourceNotFoundException("Projeto não encontrado"));
         
-        project.setName(request.name());
-        project.setDescription(request.description());
+        mapper.updateEntity(request, project);
         project.setUpdatedBy(getCurrentUser());
         
-        return mapToResponse(projectRepo.save(project));
+        return mapper.toResponse(projectRepo.save(project));
     }
 
     public void setActiveStatus(UUID id, boolean active) {
         Project project = projectRepo.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Projeto não encontrado"));
+                .orElseThrow(() -> new ResourceNotFoundException("Projeto não encontrado"));
         project.setActive(active);
         project.setUpdatedBy(getCurrentUser());
         projectRepo.save(project);
     }
 
-    private ProjectResponse mapToResponse(Project p) {
-        return new ProjectResponse(
-                p.getId(),
-                p.getName(),
-                p.getDescription(),
-                p.isActive(),
-                p.getCreatedAt(),
-                p.getUpdatedAt(),
-                p.getCreatedBy() != null ? p.getCreatedBy().getName() : "Sistema",
-                p.getUpdatedBy() != null ? p.getUpdatedBy().getName() : null
-        );
-    }
-
     private User getCurrentUser() {
         String userIdStr = SecurityContextHolder.getContext().getAuthentication().getName();
         return userRepo.findById(UUID.fromString(userIdStr))
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Usuário não autenticado"));
+                .orElseThrow(() -> new UnauthorizedException("Usuário não autenticado"));
     }
 }

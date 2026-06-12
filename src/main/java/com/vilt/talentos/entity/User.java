@@ -4,7 +4,6 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -13,7 +12,7 @@ import java.util.UUID;
 @Table(name = "users")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
-public class User {
+public class User extends BaseAuditableEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -32,15 +31,16 @@ public class User {
     @Builder.Default
     @Column(nullable = false)
     @Enumerated(EnumType.STRING)
-    private Role role = Role.RECURSO;
+    private UserRole role = UserRole.RESOURCE;
 
     @Builder.Default
     @Column(nullable = false)
     @Enumerated(EnumType.STRING)
-    private Status status = Status.ACTIVE;
+    private DomainStatus status = DomainStatus.ACTIVE;
 
-    @Column(name = "approved_by")
-    private UUID approvedBy;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "approved_by")
+    private User approvedBy;
 
     @Column(name = "approved_at")
     private Instant approvedAt;
@@ -64,11 +64,4 @@ public class User {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "group_id")
     private Group group;
-
-    @CreationTimestamp
-    @Column(name = "created_at", updatable = false)
-    private Instant createdAt;
-
-    public enum Role { ADMIN, RECURSO }
-    public enum Status { PENDING, ACTIVE, INACTIVE }
 }

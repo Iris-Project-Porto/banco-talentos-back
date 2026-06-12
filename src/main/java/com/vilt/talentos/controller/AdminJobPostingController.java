@@ -8,14 +8,16 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/admin/job-postings")
+@RequestMapping("/api/v1/admin/job-postings")
 @RequiredArgsConstructor
 @Tag(name = "Admin Job Posting", description = "Gerenciamento de vagas — requer role ADMIN")
 @SecurityRequirement(name = "bearerAuth")
@@ -25,14 +27,14 @@ public class AdminJobPostingController {
 
     @GetMapping("/active")
     @Operation(summary = "Listar vagas ativas")
-    public List<JobPostingResponse> listActive() {
-        return jobPostingService.findAllActive();
+    public Page<JobPostingResponse> listActive(@PageableDefault(size = 20) Pageable pageable) {
+        return jobPostingService.findAllActive(pageable);
     }
 
     @GetMapping("/inactive")
     @Operation(summary = "Listar vagas inativas")
-    public List<JobPostingResponse> listInactive() {
-        return jobPostingService.findAllInactive();
+    public Page<JobPostingResponse> listInactive(@PageableDefault(size = 20) Pageable pageable) {
+        return jobPostingService.findAllInactive(pageable);
     }
 
     @GetMapping("/{id}")
