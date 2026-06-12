@@ -1,6 +1,9 @@
 package com.vilt.talentos.repository;
 
 import com.vilt.talentos.entity.Squad;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -9,6 +12,13 @@ import java.util.UUID;
 
 @Repository
 public interface SquadRepository extends JpaRepository<Squad, UUID> {
-    List<Squad> findByActive(boolean active);
-    List<Squad> findByProjectId(UUID projectId);
+    @EntityGraph(attributePaths = {"project", "skills"})
+    Page<Squad> findByActive(boolean active, Pageable pageable);
+
+    @EntityGraph(attributePaths = {"project", "skills"})
+    List<Squad> findByProject_Id(UUID projectId);
+
+    @Override
+    @EntityGraph(attributePaths = {"project", "skills"})
+    Page<Squad> findAll(Pageable pageable);
 }

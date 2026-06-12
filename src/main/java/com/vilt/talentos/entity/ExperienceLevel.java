@@ -1,8 +1,10 @@
 package com.vilt.talentos.entity;
 
 import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 
 @Getter
+@RequiredArgsConstructor
 public enum ExperienceLevel {
     JUNIOR("Júnior"),
     PLENO("Pleno"),
@@ -10,10 +12,6 @@ public enum ExperienceLevel {
     ESPECIALISTA("Especialista");
 
     private final String description;
-
-    ExperienceLevel(String description) {
-        this.description = description;
-    }
 
     public static ExperienceLevel fromValue(String value) {
         if (value == null) return null;

@@ -10,7 +10,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/auth")
+@RequestMapping("/api/v1/auth")
 @RequiredArgsConstructor
 @Tag(name = "Auth", description = "Autenticação, Registro e Recuperação de Senha")
 public class AuthController {
@@ -26,35 +26,35 @@ public class AuthController {
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(summary = "Registro de usuário", description = "Criação de novo usuário. Envia código de verificação por e-mail.")
-    public ApiResponse register(@RequestBody @Valid RegisterRequest request) {
+    public ApiResponse<?> register(@RequestBody @Valid RegisterRequest request) {
         authService.register(request);
         return ApiResponse.success("Registro realizado! Por favor, verifique seu e-mail para confirmar a conta.");
     }
 
     @PostMapping("/verify")
     @Operation(summary = "Verificar e-mail", description = "Confirma o e-mail do usuário usando o código de 6 dígitos.")
-    public ApiResponse verify(@RequestBody @Valid VerificationRequest req) {
+    public ApiResponse<?> verify(@RequestBody @Valid VerificationRequest req) {
         authService.verifyEmail(req);
         return ApiResponse.success("E-mail verificado com sucesso!");
     }
 
     @PostMapping("/resend-verification-code")
     @Operation(summary = "Reenviar código de verificação", description = "Gera e envia um novo código de verificação para o e-mail informado.")
-    public ApiResponse resendVerification(@RequestBody @Valid ResendVerificationRequest req) {
+    public ApiResponse<?> resendVerification(@RequestBody @Valid ResendVerificationRequest req) {
         authService.resendVerificationCode(req.email());
         return ApiResponse.success("Novo código de verificação enviado para o seu e-mail.");
     }
 
     @PostMapping("/forgot-password")
     @Operation(summary = "Esqueci minha senha", description = "Envia um link de redefinição para o e-mail informado.")
-    public ApiResponse forgotPassword(@RequestBody @Valid ForgotPasswordRequest req) {
+    public ApiResponse<?> forgotPassword(@RequestBody @Valid ForgotPasswordRequest req) {
         authService.forgotPassword(req.email());
         return ApiResponse.success("Um link de redefinição foi enviado para o seu e-mail.");
     }
 
     @PostMapping("/reset-password")
     @Operation(summary = "Redefinir senha", description = "Altera a senha do usuário usando o token enviado por e-mail.")
-    public ApiResponse resetPassword(@RequestBody @Valid PasswordResetRequest req) {
+    public ApiResponse<?> resetPassword(@RequestBody @Valid PasswordResetRequest req) {
         authService.resetPassword(req);
         return ApiResponse.success("Senha alterada com sucesso!");
     }

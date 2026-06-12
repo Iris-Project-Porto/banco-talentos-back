@@ -8,14 +8,16 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/admin/skills")
+@RequestMapping("/api/v1/admin/skills")
 @RequiredArgsConstructor
 @Tag(name = "Admin Skills", description = "Gerenciamento administrativo de skills — requer role ADMIN")
 @SecurityRequirement(name = "bearerAuth")
@@ -25,14 +27,14 @@ public class AdminSkillController {
 
     @GetMapping("/active")
     @Operation(summary = "Listar skills ativas (Admin)")
-    public List<SkillResponse> listActive() {
-        return skillService.findAllActive();
+    public Page<SkillResponse> listActive(@PageableDefault(size = 50) Pageable pageable) {
+        return skillService.findAllActive(pageable);
     }
 
     @GetMapping("/inactive")
     @Operation(summary = "Listar skills inativas (Admin)")
-    public List<SkillResponse> listInactive() {
-        return skillService.findAllInactive();
+    public Page<SkillResponse> listInactive(@PageableDefault(size = 50) Pageable pageable) {
+        return skillService.findAllInactive(pageable);
     }
 
     @GetMapping("/{id}")

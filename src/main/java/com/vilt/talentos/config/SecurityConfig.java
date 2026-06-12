@@ -58,13 +58,13 @@ public class SecurityConfig {
                 .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED))
             )
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/auth/**").permitAll()
+                .requestMatchers("/api/v1/auth/**").permitAll()
                 .requestMatchers("/api/v1/groups").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/skills").authenticated()
                 .requestMatchers(HttpMethod.POST, "/api/v1/skills").authenticated()
                 .requestMatchers("/actuator/health").permitAll()
                 .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
-                .requestMatchers("/api/admin/**").hasAuthority("ROLE_ADMIN")
+                .requestMatchers("/api/v1/admin/**").hasAuthority("ROLE_ADMIN")
                 .anyRequest().authenticated()
             )
             .addFilterBefore(new JwtAuthFilter(jwtService), UsernamePasswordAuthenticationFilter.class);

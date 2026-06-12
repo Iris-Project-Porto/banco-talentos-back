@@ -27,12 +27,17 @@ server:
 app:
   url: ${FRONT_URL:http://localhost:3000}
   allowed-origins: ${ALLOWED_ORIGINS:http://localhost:3000,http://localhost:5173,http://127.0.0.1:5173}
+  allowed-email-domain: ${ALLOWED_EMAIL_DOMAIN:vilt-group.com}
   jwt:
     secret: ${JWT_SECRET:super-secret-key-at-least-32-chars-long-for-hs256}
     expiration-ms: 86400000
 
 anthropic:
   api-key: ${ANTHROPIC_API_KEY:}
+
+matrix:
+  pleno-keywords: kafka,sqs,sns,redis,flyway,liquibase,typescript,module federation,react query,swr,zustand,redux,openfeign,virtual threads,webflux,reactor,cqrs,saga,outbox,resilience4j,circuit breaker,kotlin,jest,testing library,storybook,web vitals,context api
+  sr-keywords: ddd,domain-driven,terraform,eks,opentelemetry,oauth2,oidc,keycloak,cognito,event-driven,event driven,cloudfront,lambda@edge,jmeter,k6,prometheus,grafana,owasp,playwright,spring security,open telemetry,step functions,hpa,autoscaling,feature flag,design system,adr,consumer-driven contracts,cdc
 
 springdoc:
   swagger-ui:

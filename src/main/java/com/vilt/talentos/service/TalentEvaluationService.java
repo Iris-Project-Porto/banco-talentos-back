@@ -1,9 +1,11 @@
 package com.vilt.talentos.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.vilt.talentos.config.MatrixProperties;
 import com.vilt.talentos.dto.ProfileRequest;
 import com.vilt.talentos.dto.SkillEntry;
 import com.vilt.talentos.entity.ExperienceLevel;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -16,34 +18,17 @@ import java.util.List;
 import java.util.Map;
 
 @Service
+@RequiredArgsConstructor
 public class TalentEvaluationService {
 
     @Value("${anthropic.api-key:}")
     private String apiKey;
 
+    private final MatrixProperties matrixProperties;
     private final ObjectMapper mapper = new ObjectMapper();
     private final HttpClient http = HttpClient.newHttpClient();
 
     public record Evaluation(ExperienceLevel nivel, int score, String justificativa) {}
-
-    // ── Keywords da Matriz de Conhecimentos Porto Seguro ──────────────────────
-
-    private static final List<String> PLENO_KEYWORDS = List.of(
-        "kafka", "sqs", "sns", "redis", "flyway", "liquibase", "typescript",
-        "module federation", "react query", "swr", "zustand", "redux",
-        "openfeign", "virtual threads", "webflux", "reactor", "cqrs", "saga",
-        "outbox", "resilience4j", "circuit breaker", "kotlin", "jest",
-        "testing library", "storybook", "web vitals", "context api"
-    );
-
-    private static final List<String> SR_KEYWORDS = List.of(
-        "ddd", "domain-driven", "terraform", "eks", "opentelemetry",
-        "oauth2", "oidc", "keycloak", "cognito", "event-driven", "event driven",
-        "cloudfront", "lambda@edge", "jmeter", "k6", "prometheus", "grafana",
-        "owasp", "playwright", "spring security", "open telemetry",
-        "step functions", "hpa", "autoscaling", "feature flag",
-        "design system", "adr", "consumer-driven contracts", "cdc"
-    );
 
     // ── Scoring behavioral dimensions ─────────────────────────────────────────
 
@@ -106,8 +91,8 @@ public class TalentEvaluationService {
             .map(s -> s.name() == null ? "" : s.name().toLowerCase())
             .reduce("", (a, b) -> a + " " + b);
 
-        boolean hasSrSkill    = SR_KEYWORDS.stream().anyMatch(allSkills::contains);
-        boolean hasPlenoSkill = PLENO_KEYWORDS.stream().anyMatch(allSkills::contains);
+        boolean hasSrSkill    = matrixProperties.getSrKeywords().stream().anyMatch(allSkills::contains);
+        boolean hasPlenoSkill = matrixProperties.getPlenoKeywords().stream().anyMatch(allSkills::contains);
 
         if (hasSrSkill) return 2;
         if (hasPlenoSkill) return 1;
@@ -123,23 +108,23 @@ public class TalentEvaluationService {
         int pontos = 0;
         var detalhes = new ArrayList<String>();
 
-        int pAut = scoreAutonomia(req.autonomia());
+        int pAut = scoreAutonomia(req.autonomy());
         pontos += pAut;
         if (pAut >= 2) detalhes.add("autonomia " + (pAut == 3 ? "proativa" : "alta") + " (+" + pAut + ")");
 
-        int pPron = scoreProntidao(req.prontidaoStack());
+        int pPron = scoreProntidao(req.stackReadiness());
         pontos += pPron;
         if (pPron >= 2) detalhes.add("stack " + (pPron == 3 ? "poliglota" : "especialista") + " (+" + pPron + ")");
 
-        int pAcomp = scoreAcompanhamento(req.nivelAcompanhamento());
+        int pAcomp = scoreAcompanhamento(req.monitoringLevel());
         pontos += pAcomp;
         if (pAcomp == 2) detalhes.add("independente (+" + pAcomp + ")");
 
-        int pMent = scoreMentoria(req.nivelMentoria());
+        int pMent = scoreMentoria(req.mentorshipLevel());
         pontos += pMent;
         if (pMent >= 1) detalhes.add("mentoria +" + pMent);
 
-        int pCert = scoreCertificacoes(req.certificacoesCount());
+        int pCert = scoreCertificacoes(req.certificationsCount());
         pontos += pCert;
         if (pCert >= 1) detalhes.add("certificações +" + pCert);
 
@@ -148,7 +133,7 @@ public class TalentEvaluationService {
         if (pExp == 2) detalhes.add("6+ anos de experiência (+2)");
         else if (pExp == 1) detalhes.add("3–5 anos (+1)");
 
-        int pCR = scoreCodeReview(req.codeReviewAtuacao());
+        int pCR = scoreCodeReview(req.codeReviewRole());
         pontos += pCR;
         if (pCR == 2) detalhes.add("define padrões de code review (+2)");
         else if (pCR == 1) detalhes.add("revisa PRs do squad (+1)");
@@ -180,9 +165,9 @@ public class TalentEvaluationService {
             return avaliarPorMatriz(req);
         }
         try {
-            String skills = req.skills() == null ? "não informadas" :
+            String skills = req.skills() == null ? "not informed" :
                 String.join(", ", req.skills().stream()
-                    .map(s -> s.name() + " (" + s.level() + ")").toList());
+                    .map(s -> s.name() + " (" + s.proficiencyLevel() + ")").toList());
 
             var base = avaliarPorMatriz(req);
 
@@ -201,22 +186,22 @@ public class TalentEvaluationService {
                 PERFIL:
                 - Área: %s | Anos: %s | Skills: %s
                 - Autonomia: %s
-                - Prontidão de stack: %s
-                - Mentoria (1–4): %s
-                - Acompanhamento: %s
-                - Certificações: %s
+                - Stack Readiness: %s
+                - Mentorship (1–4): %s
+                - Monitoring: %s
+                - Certifications: %s
                 - Code review: %s
-                - Trilha: %s
+                - Trail: %s
 
                 Score calculado pela Matriz (0–18): %d  [Jr<6 | Pleno 6–12 | Sr≥13]
 
-                Responda APENAS com JSON válido, sem markdown:
-                {"nivel":"SENIOR","score":%d,"justificativa":"texto curto explicando o nível"}
+                Responda APENAS with JSON valid, no markdown:
+                {"nivel":"SENIOR","score":%d,"justificativa":"short text explaining level"}
                 """.formatted(
                     req.area(), req.experienceYears(), skills,
-                    req.autonomia(), req.prontidaoStack(), req.nivelMentoria(),
-                    req.nivelAcompanhamento(), req.certificacoesCount(),
-                    req.codeReviewAtuacao(), req.trilhaCarreira(),
+                    req.autonomy(), req.stackReadiness(), req.mentorshipLevel(),
+                    req.monitoringLevel(), req.certificationsCount(),
+                    req.codeReviewRole(), req.careerPath(),
                     base.score(), base.score());
 
             var body = mapper.writeValueAsString(Map.of(

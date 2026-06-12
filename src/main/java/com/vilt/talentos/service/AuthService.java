@@ -1,17 +1,22 @@
 package com.vilt.talentos.service;
 
 import com.vilt.talentos.dto.*;
+import com.vilt.talentos.entity.DomainStatus;
 import com.vilt.talentos.entity.User;
+import com.vilt.talentos.entity.UserRole;
+import com.vilt.talentos.exception.BadRequestException;
+import com.vilt.talentos.exception.ForbiddenException;
+import com.vilt.talentos.exception.ResourceNotFoundException;
+import com.vilt.talentos.exception.UnauthorizedException;
+import com.vilt.talentos.mapper.UserMapper;
 import com.vilt.talentos.repository.GroupRepository;
 import com.vilt.talentos.repository.UserRepository;
 import com.vilt.talentos.security.JwtService;
 import com.vilt.talentos.config.AppProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -31,28 +36,29 @@ public class AuthService {
     private final JwtService jwtService;
     private final EmailService emailService;
     private final AppProperties appProperties;
+    private final UserMapper userMapper;
 
     public AuthResponse login(AuthRequest req) {
         log.info("Tentando login para: {}", req.email());
         validateEmailDomain(req.email());
 
         var user = userRepo.findByEmail(req.email())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Credenciais inválidas."));
+                .orElseThrow(() -> new UnauthorizedException("Usuário não cadastrado."));
 
         if (!user.isEmailVerified()) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "E-mail não verificado. Verifique seu e-mail para continuar.");
+            throw new ForbiddenException("E-mail não verificado. Verifique seu e-mail para continuar.");
         }
 
-        if (user.getStatus() == User.Status.PENDING) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Usuário pendente de aprovação por um administrador.");
+        if (user.getStatus() == DomainStatus.PENDING) {
+            throw new ForbiddenException("Usuário pendente de aprovação por um administrador.");
         }
 
-        if (user.getStatus() == User.Status.INACTIVE) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Usuário inativo.");
+        if (user.getStatus() == DomainStatus.INACTIVE) {
+            throw new ForbiddenException("Usuário inativo.");
         }
 
         if (!passwordEncoder.matches(req.password(), user.getPassword())) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Credenciais inválidas.");
+            throw new UnauthorizedException("Credenciais inválidas.");
         }
 
         String token = jwtService.generate(user.getId().toString(), Map.of(
@@ -68,25 +74,21 @@ public class AuthService {
         validateEmailDomain(request.email());
 
         if (userRepo.findByEmail(request.email()).isPresent()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "E-mail já em uso.");
+            throw new BadRequestException("E-mail já em uso.");
         }
 
         var group = groupRepo.findById(request.groupId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Grupo não encontrado."));
+                .orElseThrow(() -> new BadRequestException("Grupo não encontrado."));
 
         String verificationCode = String.format("%06d", new Random().nextInt(1000000));
 
-        User user = User.builder()
-                .name(request.name())
-                .email(request.email())
-                .password(passwordEncoder.encode(request.password()))
-                .role(request.role())
-                .status(request.role() == User.Role.ADMIN ? User.Status.PENDING : User.Status.ACTIVE)
-                .verificationCode(verificationCode)
-                .verificationCodeExpiresAt(Instant.now().plus(30, ChronoUnit.MINUTES))
-                .emailVerified(false)
-                .group(group)
-                .build();
+        User user = userMapper.toEntity(request);
+        user.setPassword(passwordEncoder.encode(request.password()));
+        user.setStatus(request.role() == UserRole.ADMIN ? DomainStatus.PENDING : DomainStatus.ACTIVE);
+        user.setVerificationCode(verificationCode);
+        user.setVerificationCodeExpiresAt(Instant.now().plus(30, ChronoUnit.MINUTES));
+        user.setEmailVerified(false);
+        user.setGroup(group);
 
         userRepo.save(user);
         
@@ -96,10 +98,10 @@ public class AuthService {
     public void verifyEmail(VerificationRequest req) {
         validateEmailDomain(req.email());
         User user = userRepo.findByEmail(req.email())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuário não encontrado."));
+                .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado."));
 
         if (user.isEmailVerified()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "E-mail já verificado.");
+            throw new BadRequestException("E-mail já verificado.");
         }
 
         if (user.getVerificationCode() != null && 
@@ -112,21 +114,21 @@ public class AuthService {
             user.setVerificationCodeExpiresAt(null);
             userRepo.save(user);
 
-            if (user.getRole() == User.Role.ADMIN && user.getStatus() == User.Status.PENDING) {
+            if (user.getRole() == UserRole.ADMIN && user.getStatus() == DomainStatus.PENDING) {
                 notifyAdmins(user);
             }
         } else {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Código de verificação inválido ou expirado.");
+            throw new BadRequestException("Código de verificação inválido ou expirado.");
         }
     }
 
     public void resendVerificationCode(String email) {
         validateEmailDomain(email);
         User user = userRepo.findByEmail(email)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuário não encontrado."));
+                .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado."));
 
         if (user.isEmailVerified()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "E-mail já verificado.");
+            throw new BadRequestException("E-mail já verificado.");
         }
 
         String verificationCode = String.format("%06d", new Random().nextInt(1000000));
@@ -149,7 +151,7 @@ public class AuthService {
     public void forgotPassword(String email) {
         validateEmailDomain(email);
         User user = userRepo.findByEmail(email)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "E-mail não encontrado em nossa base de dados."));
+                .orElseThrow(() -> new ResourceNotFoundException("E-mail não encontrado em nossa base de dados."));
 
         String token = UUID.randomUUID().toString();
         user.setResetToken(token);
@@ -168,11 +170,11 @@ public class AuthService {
     public void resetPassword(PasswordResetRequest req) {
         validateEmailDomain(req.email());
         User user = userRepo.findByEmail(req.email())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "E-mail não encontrado em nossa base de dados."));
+                .orElseThrow(() -> new ResourceNotFoundException("E-mail não encontrado em nossa base de dados."));
 
         if (user.getResetToken() == null || !user.getResetToken().equals(req.token()) || 
             user.getResetTokenExpires().isBefore(Instant.now())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Token inválido ou expirado.");
+            throw new BadRequestException("Token inválido ou expirado.");
         }
 
         user.setPassword(passwordEncoder.encode(req.newPassword()));
@@ -183,15 +185,16 @@ public class AuthService {
 
     private void validateEmailDomain(String email) {
         if (email == null || email.isBlank()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "O e-mail é obrigatório.");
+            throw new BadRequestException("O e-mail é obrigatório.");
         }
-        if (!email.endsWith("@vilt-group.com")) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "E-mail deve ser do domínio 'vilt-group.com'.");
+        String domain = appProperties.getAllowedEmailDomain();
+        if (!email.endsWith("@" + domain)) {
+            throw new BadRequestException("E-mail deve ser do domínio '" + domain + "'");
         }
     }
 
     private void notifyAdmins(User newUser) {
-        List<User> activeAdmins = userRepo.findAllByRoleAndStatus(User.Role.ADMIN, User.Status.ACTIVE);
+        List<User> activeAdmins = userRepo.findAllByRoleAndStatus(UserRole.ADMIN, DomainStatus.ACTIVE, org.springframework.data.domain.Pageable.unpaged()).getContent();
         if (activeAdmins.isEmpty()) return;
 
         List<String> adminEmails = activeAdmins.stream().map(User::getEmail).toList();

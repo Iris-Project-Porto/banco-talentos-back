@@ -1,0 +1,15 @@
+-- Rename columns in profiles table to English
+ALTER TABLE profiles RENAME COLUMN cargo TO job_title;
+ALTER TABLE profiles RENAME COLUMN sobre TO about;
+ALTER TABLE profiles RENAME COLUMN prontidao_stack TO stack_readiness;
+ALTER TABLE profiles RENAME COLUMN alocacao_status TO allocation_status;
+ALTER TABLE profiles RENAME COLUMN nivel_mentoria TO mentorship_level;
+ALTER TABLE profiles RENAME COLUMN autonomia TO autonomy;
+ALTER TABLE profiles RENAME COLUMN trilha_carreira TO career_path;
+ALTER TABLE profiles RENAME COLUMN certificacoes_count TO certifications_count;
+ALTER TABLE profiles RENAME COLUMN nivel_acompanhamento TO monitoring_level;
+ALTER TABLE profiles RENAME COLUMN nivel TO "level";
+ALTER TABLE profiles RENAME COLUMN nivel_override TO level_override;
+ALTER TABLE profiles RENAME COLUMN nivel_score TO level_score;
+ALTER TABLE profiles RENAME COLUMN nivel_justificativa TO level_justification;
+ALTER TABLE profiles RENAME COLUMN code_review_atuacao TO code_review_role;

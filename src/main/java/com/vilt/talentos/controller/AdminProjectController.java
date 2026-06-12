@@ -8,14 +8,16 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/admin/projects")
+@RequestMapping("/api/v1/admin/projects")
 @RequiredArgsConstructor
 @Tag(name = "Admin Projects", description = "Gerenciamento de projetos — requer role ADMIN")
 @SecurityRequirement(name = "bearerAuth")
@@ -25,14 +27,14 @@ public class AdminProjectController {
 
     @GetMapping("/active")
     @Operation(summary = "Listar projetos ativos")
-    public List<ProjectResponse> listActive() {
-        return projectService.findAllActive();
+    public Page<ProjectResponse> listActive(@PageableDefault(size = 20) Pageable pageable) {
+        return projectService.findAllActive(pageable);
     }
 
     @GetMapping("/inactive")
     @Operation(summary = "Listar projetos inativos")
-    public List<ProjectResponse> listInactive() {
-        return projectService.findAllInactive();
+    public Page<ProjectResponse> listInactive(@PageableDefault(size = 20) Pageable pageable) {
+        return projectService.findAllInactive(pageable);
     }
 
     @GetMapping("/{id}")

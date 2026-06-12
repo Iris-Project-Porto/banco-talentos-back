@@ -8,14 +8,16 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/admin/groups")
+@RequestMapping("/api/v1/admin/groups")
 @RequiredArgsConstructor
 @Tag(name = "Admin Groups", description = "Gerenciamento de grupos — requer role ADMIN")
 @SecurityRequirement(name = "bearerAuth")
@@ -25,14 +27,14 @@ public class AdminGroupController {
 
     @GetMapping("/active")
     @Operation(summary = "Listar grupos ativos (Admin)")
-    public List<GroupResponse> listActive() {
-        return groupService.findAllActive();
+    public Page<GroupResponse> listActive(@PageableDefault(size = 20) Pageable pageable) {
+        return groupService.findAllActive(pageable);
     }
 
     @GetMapping("/inactive")
     @Operation(summary = "Listar grupos inativos (Admin)")
-    public List<GroupResponse> listInactive() {
-        return groupService.findAllInactive();
+    public Page<GroupResponse> listInactive(@PageableDefault(size = 20) Pageable pageable) {
+        return groupService.findAllInactive(pageable);
     }
 
     @GetMapping("/{id}")

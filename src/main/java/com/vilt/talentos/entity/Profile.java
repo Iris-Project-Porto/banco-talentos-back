@@ -1,11 +1,9 @@
 package com.vilt.talentos.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
 
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -13,13 +11,14 @@ import java.util.UUID;
 @Entity
 @Table(name = "profiles")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
-public class Profile {
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+public class Profile extends BaseAuditableEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @OneToOne(fetch = FetchType.EAGER)
+    @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false, unique = true)
     private User user;
 
@@ -27,48 +26,49 @@ public class Profile {
     @Column(name = "photo_url")
     private String photoUrl;
 
-    @Column
-    private String cargo;
+    @Column(name = "job_title")
+    private String jobTitle;
 
     // Perfil Técnico
     private String area;
 
     @Column(columnDefinition = "TEXT")
-    private String sobre;
+    private String about;
 
-    @Column(name = "prontidao_stack")
-    private String prontidaoStack;
+    @Column(name = "stack_readiness")
+    private String stackReadiness;
 
     // Alocação e Potencial
-    @Column(name = "alocacao_status")
-    private String alocacaoStatus;
+    @Column(name = "allocation_status")
+    private String allocationStatus;
 
-    @Column(name = "nivel_mentoria")
-    private Integer nivelMentoria;
+    @Column(name = "mentorship_level")
+    private Integer mentorshipLevel;
 
     @Column
-    private String autonomia;
+    private String autonomy;
 
-    @Column(name = "trilha_carreira")
-    private String trilhaCarreira;
+    @Column(name = "career_path")
+    private String careerPath;
 
-    @Column(name = "certificacoes_count")
-    private String certificacoesCount;
+    @Column(name = "certifications_count")
+    private String certificationsCount;
 
-    @Column(name = "nivel_acompanhamento")
-    private String nivelAcompanhamento;
+    @Column(name = "monitoring_level")
+    private String monitoringLevel;
 
     // Avaliação IA
-    private String nivel;
+    @Column(name = "level")
+    private String level;
 
-    @Column(name = "nivel_override")
-    private String nivelOverride;
+    @Column(name = "level_override")
+    private String levelOverride;
 
-    @Column(name = "nivel_score")
-    private Integer nivelScore;
+    @Column(name = "level_score")
+    private Integer levelScore;
 
-    @Column(name = "nivel_justificativa", columnDefinition = "TEXT")
-    private String nivelJustificativa;
+    @Column(name = "level_justification", columnDefinition = "TEXT")
+    private String levelJustification;
 
     // Outros
     @Column(name = "experience_years")
@@ -88,8 +88,8 @@ public class Profile {
     @Column(name = "github_url")
     private String githubUrl;
 
-    @Column(name = "code_review_atuacao")
-    private String codeReviewAtuacao;
+    @Column(name = "code_review_role")
+    private String codeReviewRole;
 
     @Column(name = "registration_number")
     private String registrationNumber;
@@ -99,19 +99,12 @@ public class Profile {
     @Builder.Default
     private RegistrationStatus registrationStatus = RegistrationStatus.NOT_REQUESTED;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     @Builder.Default
-    private String status = "PENDENTE";
+    private DomainStatus status = DomainStatus.PENDING;
 
-    @OneToMany(mappedBy = "profile", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
+    @OneToMany(mappedBy = "profile", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @Builder.Default
     private List<ProfileSkill> skills = new ArrayList<>();
-
-    @CreationTimestamp
-    @Column(name = "created_at", updatable = false)
-    private Instant createdAt;
-
-    @UpdateTimestamp
-    @Column(name = "updated_at")
-    private Instant updatedAt;
 }

@@ -1,28 +1,37 @@
 package com.vilt.talentos.dto;
 
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import java.util.List;
 
 public record ProfileRequest(
     // Identificação
     String photoUrl,
-    String cargo,
+
+    @NotBlank(message = "Título da vaga é obrigatório.")
+    String jobTitle,
 
     // Perfil Técnico
+    @NotBlank(message = "Área é obrigatória.")
     String area,
-    String skills_text,
-    String sobre,
-    String prontidaoStack,
+
+    String skillsText,
+
+    @Size(max = 2000)
+    String about,
+
+    String stackReadiness,
 
     // Alocação e Potencial
-    String alocacaoStatus,
-    Integer nivelMentoria,
-    String autonomia,
-    String trilhaCarreira,
-    String certificacoesCount,
-    String nivelAcompanhamento,
+    String allocationStatus,
+    Integer mentorshipLevel,
+    String autonomy,
+    String careerPath,
+    String certificationsCount,
+    String monitoringLevel,
 
     // Code Review (Matriz de Conhecimentos)
-    String codeReviewAtuacao,
+    String codeReviewRole,
 
     // Extras
     Integer experienceYears,
