@@ -48,7 +48,7 @@ class AdminControllerTest extends BaseControllerTest {
     void setUp() {
         UUID id = UUID.randomUUID();
         profile = Profile.builder().id(id).status(DomainStatus.ACTIVE).user(User.builder().name("Test").build()).build();
-        profileResponse = new ProfileResponse(id, "Test", "test@test.com", "Group", null, null, null, null, null, null, null, null, null, null, null, DomainStatus.ACTIVE, List.of(), null, null);
+        profileResponse = new ProfileResponse(id, "Test", "test@test.com", "Group", null, null, null, null, null, null, null, null, null, null, null, null, DomainStatus.ACTIVE, List.of(), null, null);
     }
 
     @Test
@@ -69,7 +69,7 @@ class AdminControllerTest extends BaseControllerTest {
     @DisplayName("Deve listar perfis pendentes com sucesso")
     void pending_Success() throws Exception {
         profile.setStatus(DomainStatus.PENDING);
-        ProfileResponse pendingResponse = new ProfileResponse(profile.getId(), "Test", "test@test.com", "Group", null, null, null, null, null, null, null, null, null, null, null, DomainStatus.PENDING, List.of(), null, null);
+        ProfileResponse pendingResponse = new ProfileResponse(profile.getId(), "Test", "test@test.com", "Group", null, null, null, null, null, null, null, null, null, null, null, null, DomainStatus.PENDING, List.of(), null, null);
         
         when(profileService.getByStatus(eq(DomainStatus.PENDING), any(Pageable.class))).thenReturn(new PageImpl<>(List.of(profile)));
         when(profileMapper.toResponse(any(Profile.class))).thenReturn(pendingResponse);

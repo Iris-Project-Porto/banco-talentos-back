@@ -16,6 +16,7 @@ public record ProfileResponse(
     String jobTitle,
     String area,
     String about,
+    String allocationStatus,
     String level,
     String levelOverride,
     Integer levelScore,
