@@ -2,11 +2,14 @@ package com.vilt.talentos.controller;
 
 import com.vilt.talentos.dto.AdminUpdateRequest;
 import com.vilt.talentos.dto.DashboardKpisResponse;
+import com.vilt.talentos.dto.ProfileResponse;
 import com.vilt.talentos.entity.DomainStatus;
 import com.vilt.talentos.entity.Profile;
 import com.vilt.talentos.entity.User;
+import com.vilt.talentos.mapper.ProfileMapper;
 import com.vilt.talentos.service.AdminService;
 import com.vilt.talentos.service.ProfileService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -35,24 +38,41 @@ class AdminControllerTest extends BaseControllerTest {
     @MockBean
     private AdminService adminService;
 
+    @MockBean
+    private ProfileMapper profileMapper;
+
+    private Profile profile;
+    private ProfileResponse profileResponse;
+
+    @BeforeEach
+    void setUp() {
+        UUID id = UUID.randomUUID();
+        profile = Profile.builder().id(id).status(DomainStatus.ACTIVE).user(User.builder().name("Test").build()).build();
+        profileResponse = new ProfileResponse(id, "Test", "test@test.com", "Group", null, null, null, null, null, null, null, null, null, null, null, DomainStatus.ACTIVE, List.of(), null, null);
+    }
+
     @Test
     @WithMockUser(roles = "ADMIN")
     @DisplayName("Deve listar todos os perfis com sucesso")
     void all_Success() throws Exception {
-        Profile profile = Profile.builder().id(UUID.randomUUID()).status(DomainStatus.ACTIVE).build();
         when(profileService.getAll(any(Pageable.class))).thenReturn(new PageImpl<>(List.of(profile)));
+        when(profileMapper.toResponse(any(Profile.class))).thenReturn(profileResponse);
 
         mockMvc.perform(get("/api/v1/admin/profiles"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.content[0].status").value("ACTIVE"));
+                .andExpect(jsonPath("$.content[0].status").value("ACTIVE"))
+                .andExpect(jsonPath("$.content[0].name").value("Test"));
     }
 
     @Test
     @WithMockUser(roles = "ADMIN")
     @DisplayName("Deve listar perfis pendentes com sucesso")
     void pendentes_Success() throws Exception {
-        Profile profile = Profile.builder().id(UUID.randomUUID()).status(DomainStatus.PENDING).build();
+        profile.setStatus(DomainStatus.PENDING);
+        ProfileResponse pendingResponse = new ProfileResponse(profile.getId(), "Test", "test@test.com", "Group", null, null, null, null, null, null, null, null, null, null, null, DomainStatus.PENDING, List.of(), null, null);
+        
         when(profileService.getByStatus(eq(DomainStatus.PENDING), any(Pageable.class))).thenReturn(new PageImpl<>(List.of(profile)));
+        when(profileMapper.toResponse(any(Profile.class))).thenReturn(pendingResponse);
 
         mockMvc.perform(get("/api/v1/admin/profiles/pending"))
                 .andExpect(status().isOk())
@@ -63,9 +83,9 @@ class AdminControllerTest extends BaseControllerTest {
     @WithMockUser(roles = "ADMIN")
     @DisplayName("Deve buscar perfil por id com sucesso")
     void getById_Success() throws Exception {
-        UUID id = UUID.randomUUID();
-        Profile profile = Profile.builder().id(id).status(DomainStatus.ACTIVE).build();
+        UUID id = profile.getId();
         when(profileService.getById(id)).thenReturn(profile);
+        when(profileMapper.toResponse(profile)).thenReturn(profileResponse);
 
         mockMvc.perform(get("/api/v1/admin/profiles/{id}", id))
                 .andExpect(status().isOk())
@@ -76,19 +96,18 @@ class AdminControllerTest extends BaseControllerTest {
     @WithMockUser(roles = "ADMIN")
     @DisplayName("Deve atualizar perfil com sucesso")
     void update_Success() throws Exception {
-        UUID id = UUID.randomUUID();
+        UUID id = profile.getId();
         AdminUpdateRequest req = new AdminUpdateRequest("ACTIVE", "SENIOR", null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
-        Profile updatedProfile = Profile.builder().id(id).status(DomainStatus.ACTIVE).levelOverride("SENIOR").build();
         
-        when(profileService.adminUpdate(eq(id), any(AdminUpdateRequest.class))).thenReturn(updatedProfile);
+        when(profileService.adminUpdate(eq(id), any(AdminUpdateRequest.class))).thenReturn(profile);
+        when(profileMapper.toResponse(profile)).thenReturn(profileResponse);
 
         mockMvc.perform(patch("/api/v1/admin/profiles/{id}", id)
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(asJsonString(req)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("ACTIVE"))
-                .andExpect(jsonPath("$.levelOverride").value("SENIOR"));
+                .andExpect(jsonPath("$.status").value("ACTIVE"));
     }
 
     @Test

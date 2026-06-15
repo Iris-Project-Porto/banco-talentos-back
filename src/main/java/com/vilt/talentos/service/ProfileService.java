@@ -15,7 +15,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -49,17 +51,14 @@ public class ProfileService {
         profileMapper.updateEntity(req, profile);
         
         // Lógica de Matrícula para o Recurso: envia para revisão administrativa
-        if (req.registrationNumber() != null && !req.registrationNumber().isBlank()) {
-            profile.setRegistrationNumber(req.registrationNumber());
-            profile.setRegistrationStatus(RegistrationStatus.AWAITING_APPROVAL);
-        }
+        profile.setRegistrationNumber(req.registrationNumber());
+        profile.setRegistrationStatus(RegistrationStatus.AWAITING_APPROVAL);
 
         profile.setLevel(evaluation.nivel().name());
         profile.setLevelScore(evaluation.score());
         profile.setLevelJustification(evaluation.justificativa());
-
         // Reconciliação de skills HARD (recursos só mexem em HARD)
-        reconcileSkills(profile, req.skills(), SkillType.HARD);
+        reconcileSkills(profile, req.skills(), null);
 
         Profile saved = profileRepo.save(profile);
 
@@ -146,14 +145,9 @@ public class ProfileService {
             userRepo.save(profile.getUser());
         }
 
-        // Reconciliação de skills HARD
-        if (req.skills() != null) {
-            reconcileSkills(profile, req.skills(), SkillType.HARD);
-        }
-
-        // Reconciliação de skills SOFT (exclusivo Admin)
-        if (req.softSkills() != null) {
-            reconcileSkills(profile, req.softSkills(), SkillType.SOFT);
+        // Reconciliação de skills HARD e SOFT
+        if (req.skills() != null || req.softSkills() != null) {
+            reconcileSkills(profile, req.skills(), req.softSkills());
         }
 
         Profile saved = profileRepo.save(profile);
@@ -169,45 +163,113 @@ public class ProfileService {
         return saved;
     }
 
-    private void reconcileSkills(Profile profile, List<SkillEntry> entries, SkillType type) {
-        if (entries == null) return;
+    private void reconcileSkills(Profile profile, List<SkillEntry> hardEntries, List<SkillEntry> softEntries) {
+        // Build maps of request skills if they are provided
+        Map<String, SkillEntry> requestedHard = null;
+        if (hardEntries != null) {
+            requestedHard = hardEntries.stream()
+                    .filter(s -> s.name() != null && !s.name().isBlank())
+                    .collect(Collectors.toMap(
+                            s -> s.name().trim().toUpperCase(),
+                            s -> s,
+                            (existing, replacement) -> existing
+                    ));
+        }
 
-        var requestSkills = entries.stream()
-                .filter(s -> s.name() != null && !s.name().isBlank())
-                .collect(Collectors.toMap(
-                        s -> s.name().trim().toUpperCase(),
-                        s -> s,
-                        (existing, replacement) -> existing
-                ));
+        Map<String, SkillEntry> requestedSoft = null;
+        if (softEntries != null) {
+            requestedSoft = softEntries.stream()
+                    .filter(s -> s.name() != null && !s.name().isBlank())
+                    .collect(Collectors.toMap(
+                            s -> s.name().trim().toUpperCase(),
+                            s -> s,
+                            (existing, replacement) -> existing
+                    ));
+        }
 
-        // 1. Remove as que não estão mais no request (apenas do tipo especificado)
-        profile.getSkills().removeIf(ps -> 
-            ps.getSkill().getType() == type &&
-            !requestSkills.containsKey(ps.getSkill().getName().trim().toUpperCase())
-        );
+        // 1. Process existing profile skills and update in place or remove
+        List<ProfileSkill> toRemove = new ArrayList<>();
+        for (ProfileSkill ps : profile.getSkills()) {
+            String name = ps.getSkill().getName().trim().toUpperCase();
+            SkillType currentType = ps.getSkill().getType();
 
-        // 2. Atualiza níveis das existentes ou Adiciona novas
-        for (var entry : requestSkills.values()) {
-            String name = entry.name().trim().toUpperCase();
-            Integer level = entry.proficiencyLevel();
-
-            var existing = profile.getSkills().stream()
-                    .filter(ps -> ps.getSkill().getName().equalsIgnoreCase(name))
-                    .findFirst();
-
-            if (existing.isPresent()) {
-                existing.get().setProficiencyLevel(level);
-                // Garantir que o tipo está correto se a skill já existia no banco
-                if (existing.get().getSkill().getType() != type) {
-                    existing.get().getSkill().setType(type);
-                    skillRepo.save(existing.get().getSkill());
+            if (currentType == SkillType.HARD) {
+                if (requestedHard != null) {
+                    if (requestedHard.containsKey(name)) {
+                        // Keep and update
+                        SkillEntry entry = requestedHard.remove(name);
+                        ps.setProficiencyLevel(entry.proficiencyLevel());
+                    } else if (requestedSoft != null && requestedSoft.containsKey(name)) {
+                        // Changed type to SOFT, update in place
+                        SkillEntry entry = requestedSoft.remove(name);
+                        ps.setProficiencyLevel(entry.proficiencyLevel());
+                        ps.getSkill().setType(SkillType.SOFT);
+                        skillRepo.save(ps.getSkill());
+                    } else {
+                        // Removed from HARD (and not added to SOFT)
+                        toRemove.add(ps);
+                    }
+                } else {
+                    // We are not reconciling HARD skills, so do not touch them
                 }
-            } else {
-                var skill = skillRepo.findByName(name)
-                        .orElseGet(() -> skillRepo.save(Skill.builder().name(name).type(type).build()));
+            } else if (currentType == SkillType.SOFT) {
+                if (requestedSoft != null) {
+                    if (requestedSoft.containsKey(name)) {
+                        // Keep and update
+                        SkillEntry entry = requestedSoft.remove(name);
+                        ps.setProficiencyLevel(entry.proficiencyLevel());
+                    } else if (requestedHard != null && requestedHard.containsKey(name)) {
+                        // Changed type to HARD, update in place
+                        SkillEntry entry = requestedHard.remove(name);
+                        ps.setProficiencyLevel(entry.proficiencyLevel());
+                        ps.getSkill().setType(SkillType.HARD);
+                        skillRepo.save(ps.getSkill());
+                    } else {
+                        // Removed from SOFT (and not added to HARD)
+                        toRemove.add(ps);
+                    }
+                } else {
+                    // We are not reconciling SOFT skills, so do not touch them
+                }
+            }
+        }
+
+        // Remove marked skills
+        profile.getSkills().removeAll(toRemove);
+
+        // 2. Add remaining new HARD skills
+        if (requestedHard != null) {
+            for (var entry : requestedHard.values()) {
+                String name = entry.name().trim().toUpperCase();
+                Integer level = entry.proficiencyLevel();
                 
-                if (skill.getType() != type) {
-                    skill.setType(type);
+                var skill = skillRepo.findByName(name)
+                        .orElseGet(() -> skillRepo.save(Skill.builder().name(name).type(SkillType.HARD).build()));
+
+                if (skill.getType() != SkillType.HARD) {
+                    skill.setType(SkillType.HARD);
+                    skillRepo.save(skill);
+                }
+
+                profile.getSkills().add(ProfileSkill.builder()
+                        .profile(profile)
+                        .skill(skill)
+                        .proficiencyLevel(level)
+                        .build());
+            }
+        }
+
+        // 3. Add remaining new SOFT skills
+        if (requestedSoft != null) {
+            for (var entry : requestedSoft.values()) {
+                String name = entry.name().trim().toUpperCase();
+                Integer level = entry.proficiencyLevel();
+                
+                var skill = skillRepo.findByName(name)
+                        .orElseGet(() -> skillRepo.save(Skill.builder().name(name).type(SkillType.SOFT).build()));
+
+                if (skill.getType() != SkillType.SOFT) {
+                    skill.setType(SkillType.SOFT);
                     skillRepo.save(skill);
                 }
 

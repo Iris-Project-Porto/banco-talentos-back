@@ -2,9 +2,11 @@ package com.vilt.talentos.controller;
 
 import com.vilt.talentos.dto.AdminUpdateRequest;
 import com.vilt.talentos.dto.DashboardKpisResponse;
+import com.vilt.talentos.dto.ProfileResponse;
 import com.vilt.talentos.entity.DomainStatus;
 import com.vilt.talentos.entity.Profile;
 import com.vilt.talentos.entity.User;
+import com.vilt.talentos.mapper.ProfileMapper;
 import com.vilt.talentos.service.AdminService;
 import com.vilt.talentos.service.ProfileService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -32,35 +34,36 @@ public class AdminController {
 
     private final ProfileService profileService;
     private final AdminService adminService;
+    private final ProfileMapper profileMapper;
 
     @GetMapping("/profiles")
     @Operation(summary = "Listar todos os perfis", description = "Retorna uma página com todos os perfis cadastrados no sistema.")
-    public Page<Profile> all(@PageableDefault(size = 20) Pageable pageable) {
-        return profileService.getAll(pageable);
+    public Page<ProfileResponse> all(@PageableDefault(size = 20) Pageable pageable) {
+        return profileService.getAll(pageable).map(profileMapper::toResponse);
     }
 
     @GetMapping("/profiles/pending")
     @Operation(summary = "Fila de revisão", description = "Retorna perfis com status PENDENTE que aguardam aprovação.")
-    public Page<Profile> pendentes(@PageableDefault(size = 20) Pageable pageable) {
-        return profileService.getByStatus(DomainStatus.PENDING, pageable);
+    public Page<ProfileResponse> pendentes(@PageableDefault(size = 20) Pageable pageable) {
+        return profileService.getByStatus(DomainStatus.PENDING, pageable).map(profileMapper::toResponse);
     }
 
     @GetMapping("/profiles/active")
     @Operation(summary = "Banco de talentos", description = "Retorna perfis com status ATIVO.")
-    public Page<Profile> ativos(@PageableDefault(size = 20) Pageable pageable) {
-        return profileService.getByStatus(DomainStatus.ACTIVE, pageable);
+    public Page<ProfileResponse> ativos(@PageableDefault(size = 20) Pageable pageable) {
+        return profileService.getByStatus(DomainStatus.ACTIVE, pageable).map(profileMapper::toResponse);
     }
 
     @GetMapping("/profiles/{id}")
     @Operation(summary = "Buscar perfil por id", description = "Retorna os detalhes completos de um perfil específico.")
-    public Profile getById(@PathVariable UUID id) {
-        return profileService.getById(id);
+    public ProfileResponse getById(@PathVariable UUID id) {
+        return profileMapper.toResponse(profileService.getById(id));
     }
 
     @PatchMapping("/profiles/{id}")
     @Operation(summary = "Atualizar perfil", description = "Permite alterar status, nivel_override, área, grupo e outras informações do colaborador.")
-    public Profile update(@PathVariable UUID id, @RequestBody @Valid AdminUpdateRequest req) {
-        return profileService.adminUpdate(id, req);
+    public ProfileResponse update(@PathVariable UUID id, @RequestBody @Valid AdminUpdateRequest req) {
+        return profileMapper.toResponse(profileService.adminUpdate(id, req));
     }
 
     @GetMapping("/dashboard")
