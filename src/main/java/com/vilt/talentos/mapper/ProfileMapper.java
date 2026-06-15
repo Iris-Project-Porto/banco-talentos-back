@@ -2,11 +2,23 @@ package com.vilt.talentos.mapper;
 
 import com.vilt.talentos.dto.AdminUpdateRequest;
 import com.vilt.talentos.dto.ProfileRequest;
+import com.vilt.talentos.dto.ProfileResponse;
+import com.vilt.talentos.dto.ProfileSkillResponse;
 import com.vilt.talentos.entity.Profile;
+import com.vilt.talentos.entity.ProfileSkill;
 import org.mapstruct.*;
 
 @Mapper(componentModel = "spring", builder = @Builder(disableBuilder = true))
 public interface ProfileMapper {
+
+    @Mapping(target = "name", source = "user.name")
+    @Mapping(target = "email", source = "user.email")
+    @Mapping(target = "groupName", source = "user.group.name")
+    ProfileResponse toResponse(Profile profile);
+
+    @Mapping(target = "name", source = "skill.name")
+    @Mapping(target = "type", source = "skill.type")
+    ProfileSkillResponse toSkillResponse(ProfileSkill profileSkill);
 
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "user", ignore = true)

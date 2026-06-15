@@ -169,11 +169,10 @@ public class AuthService {
 
     public void resetPassword(PasswordResetRequest req) {
         validateEmailDomain(req.email());
-        User user = userRepo.findByEmail(req.email())
-                .orElseThrow(() -> new ResourceNotFoundException("E-mail não encontrado em nossa base de dados."));
+        User user = userRepo.findByResetToken(req.token())
+                .orElseThrow(() -> new BadRequestException("Token inválido ou expirado."));
 
-        if (user.getResetToken() == null || !user.getResetToken().equals(req.token()) || 
-            user.getResetTokenExpires().isBefore(Instant.now())) {
+        if (user.getResetTokenExpires() == null || user.getResetTokenExpires().isBefore(Instant.now())) {
             throw new BadRequestException("Token inválido ou expirado.");
         }
 

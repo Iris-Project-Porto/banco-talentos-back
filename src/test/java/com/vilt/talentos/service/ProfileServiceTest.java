@@ -1,11 +1,16 @@
 package com.vilt.talentos.service;
 
 import com.vilt.talentos.config.AppProperties;
+import com.vilt.talentos.dto.AdminUpdateRequest;
 import com.vilt.talentos.dto.ProfileRequest;
+import com.vilt.talentos.dto.SkillEntry;
 import com.vilt.talentos.entity.DomainStatus;
 import com.vilt.talentos.entity.ExperienceLevel;
 import com.vilt.talentos.entity.Profile;
+import com.vilt.talentos.entity.ProfileSkill;
 import com.vilt.talentos.entity.RegistrationStatus;
+import com.vilt.talentos.entity.Skill;
+import com.vilt.talentos.entity.SkillType;
 import com.vilt.talentos.entity.User;
 import com.vilt.talentos.mapper.ProfileMapper;
 import com.vilt.talentos.repository.GroupRepository;
@@ -57,6 +62,7 @@ class ProfileServiceTest {
 
         when(userRepo.findById(userId)).thenReturn(Optional.of(user));
         when(profileRepo.findByUserId(userId)).thenReturn(Optional.of(profile));
+        when(userRepo.findAllByRoleAndStatus(any(), any(), any())).thenReturn(org.springframework.data.domain.Page.empty());
         when(evaluationService.evaluate(any())).thenReturn(new TalentEvaluationService.Evaluation(ExperienceLevel.PLENO, 50, "Justification"));
         when(profileRepo.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -80,5 +86,51 @@ class ProfileServiceTest {
         Profile result = profileService.createOrUpdate(userId, req);
 
         assertEquals(RegistrationStatus.AWAITING_APPROVAL, result.getRegistrationStatus(), "Registration status should be AWAITING_APPROVAL");
+    }
+
+    @Test
+    void adminUpdate_reconcilesHardAndSoftSkills_savesWithoutDuplicates() {
+        UUID profileId = UUID.randomUUID();
+        User user = User.builder().email("test@vilt-group.com").build();
+        
+        Skill skill = Skill.builder()
+                .id(UUID.randomUUID())
+                .name("ADAPTABILIDADE E FLEXIBILIDADE")
+                .type(SkillType.HARD)
+                .build();
+                
+        ProfileSkill ps = ProfileSkill.builder()
+                .skill(skill)
+                .proficiencyLevel(5)
+                .build();
+                
+        Profile profile = Profile.builder()
+                .id(profileId)
+                .user(user)
+                .status(DomainStatus.ACTIVE)
+                .skills(new java.util.ArrayList<>(java.util.List.of(ps)))
+                .build();
+        ps.setProfile(profile);
+
+        AdminUpdateRequest req = new AdminUpdateRequest(
+                "ACTIVE", "SENIOR", null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null,
+                java.util.List.of(new SkillEntry("TYPESCRIPT", 7)),
+                java.util.List.of(new SkillEntry("ADAPTABILIDADE E FLEXIBILIDADE", 10))
+        );
+
+        when(profileRepo.findById(profileId)).thenReturn(Optional.of(profile));
+        when(skillRepo.findByName("TYPESCRIPT")).thenReturn(Optional.empty());
+        when(skillRepo.save(any(Skill.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(profileRepo.save(any(Profile.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        Profile result = profileService.adminUpdate(profileId, req);
+
+        assertEquals(SkillType.SOFT, skill.getType());
+        assertEquals(10, ps.getProficiencyLevel());
+        
+        assertEquals(2, result.getSkills().size());
+        boolean hasTypeScript = result.getSkills().stream()
+                .anyMatch(pSkill -> pSkill.getSkill().getName().equals("TYPESCRIPT") && pSkill.getSkill().getType() == SkillType.HARD);
+        org.junit.jupiter.api.Assertions.assertTrue(hasTypeScript);
     }
 }

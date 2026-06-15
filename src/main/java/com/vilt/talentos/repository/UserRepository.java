@@ -16,6 +16,9 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     Optional<User> findByEmail(String email);
 
     @EntityGraph(attributePaths = {"group"})
+    Optional<User> findByResetToken(String resetToken);
+
+    @EntityGraph(attributePaths = {"group"})
     Page<User> findAllByRoleAndStatus(UserRole role, DomainStatus status, Pageable pageable);
 
     @Override
