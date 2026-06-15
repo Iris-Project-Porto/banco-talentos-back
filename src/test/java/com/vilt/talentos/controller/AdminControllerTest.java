@@ -67,7 +67,7 @@ class AdminControllerTest extends BaseControllerTest {
     @Test
     @WithMockUser(roles = "ADMIN")
     @DisplayName("Deve listar perfis pendentes com sucesso")
-    void pendentes_Success() throws Exception {
+    void pending_Success() throws Exception {
         profile.setStatus(DomainStatus.PENDING);
         ProfileResponse pendingResponse = new ProfileResponse(profile.getId(), "Test", "test@test.com", "Group", null, null, null, null, null, null, null, null, null, null, null, DomainStatus.PENDING, List.of(), null, null);
         
