@@ -36,8 +36,8 @@ public class AdminService {
     public DashboardKpisResponse getDashboardKpis() {
         var all = profileRepo.findAll();
         var total = all.size();
-        var ativos = all.stream().filter(p -> DomainStatus.ACTIVE == p.getStatus()).count();
-        var pendentes = all.stream().filter(p -> DomainStatus.PENDING == p.getStatus()).count();
+        var active = all.stream().filter(p -> DomainStatus.ACTIVE == p.getStatus()).count();
+        var pending = all.stream().filter(p -> DomainStatus.PENDING == p.getStatus()).count();
 
         // Visão 1: Skills mais dominadas pelos recursos (Soma dos níveis de proficiência)
         var skillsByProficiency = all.stream()
@@ -57,18 +57,18 @@ public class AdminService {
                 Collectors.summingLong(ps -> ps.getSkill().getImportanceWeight() != null ? ps.getSkill().getImportanceWeight() : 1)
             ));
 
-        var nivelCount = all.stream()
+        var levelCount = all.stream()
             .map(p -> ExperienceLevel.fromValue(p.getLevelOverride() != null ? p.getLevelOverride() : p.getLevel()))
             .filter(Objects::nonNull)
             .collect(Collectors.groupingBy(Function.identity(), Collectors.counting()));
 
         return new DashboardKpisResponse(
             total,
-            ativos,
-            pendentes,
+            active,
+            pending,
             mapToSkillKpiList(skillsByProficiency),
             mapToSkillKpiList(skillsByImportance),
-            nivelCount
+            levelCount
         );
     }
 

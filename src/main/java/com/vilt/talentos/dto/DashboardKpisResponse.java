@@ -11,10 +11,10 @@ public record DashboardKpisResponse(
     long total,
     
     @Schema(description = "Usuários com perfil ATIVO")
-    long ativos,
+    long active,
     
     @Schema(description = "Usuários com perfil PENDENTE")
-    long pendentes,
+    long pending,
     
     @Schema(description = "Top skills por proficiência (habilidade)")
     List<SkillKpi> topSkillsByProficiency,
@@ -23,7 +23,7 @@ public record DashboardKpisResponse(
     List<SkillKpi> topSkillsByImportance,
     
     @Schema(description = "Distribuição por nível de experiência")
-    Map<ExperienceLevel, Long> nivelCount
+    Map<ExperienceLevel, Long> levelCount
 ) {
     public record SkillKpi(
         @Schema(description = "Nome da skill")
