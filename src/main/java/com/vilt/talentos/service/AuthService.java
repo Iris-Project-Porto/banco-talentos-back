@@ -39,10 +39,10 @@ public class AuthService {
     private final UserMapper userMapper;
 
     public AuthResponse login(AuthRequest req) {
-        log.info("Tentando login para: {}", req.email());
-        validateEmailDomain(req.email());
+        String email = normalizeAndValidateEmail(req.email());
+        log.info("Tentando login para: {}", email);
 
-        var user = userRepo.findByEmail(req.email())
+        var user = userRepo.findByEmailIgnoreCase(email)
                 .orElseThrow(() -> new UnauthorizedException("Usuário não cadastrado."));
 
         if (!user.isEmailVerified()) {
@@ -71,9 +71,9 @@ public class AuthService {
     }
 
     public void register(RegisterRequest request){
-        validateEmailDomain(request.email());
+        String email = normalizeAndValidateEmail(request.email());
 
-        if (userRepo.findByEmail(request.email()).isPresent()) {
+        if (userRepo.findByEmailIgnoreCase(email).isPresent()) {
             throw new BadRequestException("E-mail já em uso.");
         }
 
@@ -83,6 +83,7 @@ public class AuthService {
         String verificationCode = String.format("%06d", new Random().nextInt(1000000));
 
         User user = userMapper.toEntity(request);
+        user.setEmail(email);
         user.setPassword(passwordEncoder.encode(request.password()));
         user.setStatus(request.role() == UserRole.ADMIN ? DomainStatus.PENDING : DomainStatus.ACTIVE);
         user.setVerificationCode(verificationCode);
@@ -96,8 +97,8 @@ public class AuthService {
     }
 
     public void verifyEmail(VerificationRequest req) {
-        validateEmailDomain(req.email());
-        User user = userRepo.findByEmail(req.email())
+        String email = normalizeAndValidateEmail(req.email());
+        User user = userRepo.findByEmailIgnoreCase(email)
                 .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado."));
 
         if (user.isEmailVerified()) {
@@ -122,9 +123,9 @@ public class AuthService {
         }
     }
 
-    public void resendVerificationCode(String email) {
-        validateEmailDomain(email);
-        User user = userRepo.findByEmail(email)
+    public void resendVerificationCode(String rawEmail) {
+        String email = normalizeAndValidateEmail(rawEmail);
+        User user = userRepo.findByEmailIgnoreCase(email)
                 .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado."));
 
         if (user.isEmailVerified()) {
@@ -148,9 +149,9 @@ public class AuthService {
         );
     }
 
-    public void forgotPassword(String email) {
-        validateEmailDomain(email);
-        User user = userRepo.findByEmail(email)
+    public void forgotPassword(String rawEmail) {
+        String email = normalizeAndValidateEmail(rawEmail);
+        User user = userRepo.findByEmailIgnoreCase(email)
                 .orElseThrow(() -> new ResourceNotFoundException("E-mail não encontrado em nossa base de dados."));
 
         String token = UUID.randomUUID().toString();
@@ -168,7 +169,7 @@ public class AuthService {
     }
 
     public void resetPassword(PasswordResetRequest req) {
-        validateEmailDomain(req.email());
+        normalizeAndValidateEmail(req.email());
         User user = userRepo.findByResetToken(req.token())
                 .orElseThrow(() -> new BadRequestException("Token inválido ou expirado."));
 
@@ -182,14 +183,16 @@ public class AuthService {
         userRepo.save(user);
     }
 
-    private void validateEmailDomain(String email) {
+    private String normalizeAndValidateEmail(String email) {
         if (email == null || email.isBlank()) {
             throw new BadRequestException("O e-mail é obrigatório.");
         }
+        String normalizedEmail = email.trim().toLowerCase();
         String domain = appProperties.getAllowedEmailDomain();
-        if (!email.endsWith("@" + domain)) {
+        if (!normalizedEmail.endsWith("@" + domain)) {
             throw new BadRequestException("E-mail deve ser do domínio '" + domain + "'");
         }
+        return normalizedEmail;
     }
 
     private void notifyAdmins(User newUser) {
