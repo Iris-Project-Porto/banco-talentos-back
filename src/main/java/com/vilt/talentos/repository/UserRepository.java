@@ -13,7 +13,7 @@ import java.util.UUID;
 
 public interface UserRepository extends JpaRepository<User, UUID> {
     @EntityGraph(attributePaths = {"group"})
-    Optional<User> findByEmail(String email);
+    Optional<User> findByEmailIgnoreCase(String email);
 
     @EntityGraph(attributePaths = {"group"})
     Optional<User> findByResetToken(String resetToken);

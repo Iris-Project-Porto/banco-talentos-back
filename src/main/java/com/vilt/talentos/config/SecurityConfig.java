@@ -38,7 +38,7 @@ public class SecurityConfig {
     @Bean
     public UserDetailsService userDetailsService() {
         return email -> {
-            var user = userRepository.findByEmail(email)
+            var user = userRepository.findByEmailIgnoreCase(email)
                     .orElseThrow(() -> new UsernameNotFoundException("User not found: " + email));
             return org.springframework.security.core.userdetails.User
                     .withUsername(user.getEmail())
