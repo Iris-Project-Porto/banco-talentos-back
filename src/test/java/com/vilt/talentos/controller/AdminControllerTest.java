@@ -24,6 +24,7 @@ import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -55,13 +56,25 @@ class AdminControllerTest extends BaseControllerTest {
     @WithMockUser(roles = "ADMIN")
     @DisplayName("Deve listar todos os perfis com sucesso")
     void all_Success() throws Exception {
-        when(profileService.getAll(any(Pageable.class))).thenReturn(new PageImpl<>(List.of(profile)));
+        when(profileService.getAllWithFilters(isNull(), any(), any(Pageable.class))).thenReturn(new PageImpl<>(List.of(profile)));
         when(profileMapper.toResponse(any(Profile.class))).thenReturn(profileResponse);
 
         mockMvc.perform(get("/api/v1/admin/profiles"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[0].status").value("ACTIVE"))
                 .andExpect(jsonPath("$.content[0].name").value("Test"));
+    }
+
+    @Test
+    @WithMockUser(roles = "ADMIN")
+    @DisplayName("Deve listar perfis ativos com sucesso")
+    void ativos_Success() throws Exception {
+        when(profileService.getAllWithFilters(eq(DomainStatus.ACTIVE), any(), any(Pageable.class))).thenReturn(new PageImpl<>(List.of(profile)));
+        when(profileMapper.toResponse(any(Profile.class))).thenReturn(profileResponse);
+
+        mockMvc.perform(get("/api/v1/admin/profiles/active"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].status").value("ACTIVE"));
     }
 
     @Test

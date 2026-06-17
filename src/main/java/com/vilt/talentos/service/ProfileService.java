@@ -9,6 +9,8 @@ import com.vilt.talentos.exception.BadRequestException;
 import com.vilt.talentos.exception.ResourceNotFoundException;
 import com.vilt.talentos.mapper.ProfileMapper;
 import com.vilt.talentos.repository.*;
+import jakarta.persistence.criteria.Join;
+import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -111,6 +113,44 @@ public class ProfileService {
             throw new ResourceNotFoundException("No profiles found");
         }
         return page;
+    }
+
+    public Page<Profile> getAllWithFilters(DomainStatus status, String skillName, Pageable pageable) {
+        return profileRepo.findAll((root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+
+            if (status != null) {
+                predicates.add(cb.equal(root.get("status"), status));
+            }
+
+            if (skillName != null && !skillName.isBlank()) {
+                Join<Profile, ProfileSkill> ps = root.join("skills");
+                predicates.add(cb.equal(cb.upper(ps.get("skill").get("name")), skillName.trim().toUpperCase()));
+
+                if (query.getResultType() != Long.class && pageable.getSort().isUnsorted()) {
+                    query.orderBy(
+                        cb.asc(cb.selectCase()
+                            .when(cb.equal(root.get("allocationStatus"), "Disponível (Bench)"), 1)
+                            .when(cb.equal(root.get("allocationStatus"), "Alocado Parcial"), 2)
+                            .when(cb.equal(root.get("allocationStatus"), "Em Transição (saindo de projeto)"), 3)
+                            .when(cb.equal(root.get("allocationStatus"), "Alocado Integral (100%)"), 4)
+                            .otherwise(5)),
+                        cb.desc(ps.get("proficiencyLevel"))
+                    );
+                }
+            } else if (query.getResultType() != Long.class && pageable.getSort().isUnsorted()) {
+                 query.orderBy(
+                        cb.asc(cb.selectCase()
+                            .when(cb.equal(root.get("allocationStatus"), "Disponível (Bench)"), 1)
+                            .when(cb.equal(root.get("allocationStatus"), "Alocado Parcial"), 2)
+                            .when(cb.equal(root.get("allocationStatus"), "Em Transição (saindo de projeto)"), 3)
+                            .when(cb.equal(root.get("allocationStatus"), "Alocado Integral (100%)"), 4)
+                            .otherwise(5))
+                    );
+            }
+
+            return cb.and(predicates.toArray(new Predicate[0]));
+        }, pageable);
     }
 
     @Transactional
