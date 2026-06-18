@@ -117,6 +117,8 @@ public class ProfileService {
 
     public Page<Profile> getAllWithFilters(DomainStatus status, String skillName, Pageable pageable) {
         return profileRepo.findAll((root, query, cb) -> {
+            query.distinct(true);
+            
             List<Predicate> predicates = new ArrayList<>();
 
             if (status != null) {
@@ -125,9 +127,9 @@ public class ProfileService {
 
             if (skillName != null && !skillName.isBlank()) {
                 Join<Profile, ProfileSkill> ps = root.join("skills");
-                predicates.add(cb.equal(cb.upper(ps.get("skill").get("name")), skillName.trim().toUpperCase()));
+                predicates.add(cb.equal(cb.upper(ps.join("skill").get("name")), skillName.trim().toUpperCase()));
 
-                if (query.getResultType() != Long.class && pageable.getSort().isUnsorted()) {
+                if (query.getResultType() != Long.class && (pageable.getSort() == null || pageable.getSort().isUnsorted())) {
                     query.orderBy(
                         cb.asc(cb.selectCase()
                             .when(cb.equal(root.get("allocationStatus"), "Disponível (Bench)"), 1)
@@ -138,7 +140,7 @@ public class ProfileService {
                         cb.desc(ps.get("proficiencyLevel"))
                     );
                 }
-            } else if (query.getResultType() != Long.class && pageable.getSort().isUnsorted()) {
+            } else if (query.getResultType() != Long.class && (pageable.getSort() == null || pageable.getSort().isUnsorted())) {
                  query.orderBy(
                         cb.asc(cb.selectCase()
                             .when(cb.equal(root.get("allocationStatus"), "Disponível (Bench)"), 1)
