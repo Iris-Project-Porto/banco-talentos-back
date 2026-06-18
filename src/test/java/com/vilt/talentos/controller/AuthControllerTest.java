@@ -40,7 +40,7 @@ class AuthControllerTest extends BaseControllerTest {
 
     @Test
     void register_ValidRequest_ReturnsSuccessMessage() throws Exception {
-        RegisterRequest req = new RegisterRequest("Test User", "test@vilt-group.com", "password123", UserRole.RESOURCE, UUID.randomUUID());
+        RegisterRequest req = new RegisterRequest("Test User", "test@vilt-group.com", "Password123!", UserRole.RESOURCE, UUID.randomUUID());
 
         doNothing().when(authService).register(any(RegisterRequest.class));
 
@@ -49,6 +49,26 @@ class AuthControllerTest extends BaseControllerTest {
                         .content(asJsonString(req)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.message").value("Registro realizado! Por favor, verifique seu e-mail para confirmar a conta."));
+    }
+
+    @Test
+    void register_WeakPassword_ReturnsBadRequest() throws Exception {
+        RegisterRequest req = new RegisterRequest("Test User", "test@vilt-group.com", "weak", UserRole.RESOURCE, UUID.randomUUID());
+
+        mockMvc.perform(post("/api/v1/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(asJsonString(req)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void register_MissingSpecialChar_ReturnsBadRequest() throws Exception {
+        RegisterRequest req = new RegisterRequest("Test User", "test@vilt-group.com", "Password123", UserRole.RESOURCE, UUID.randomUUID());
+
+        mockMvc.perform(post("/api/v1/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(asJsonString(req)))
+                .andExpect(status().isBadRequest());
     }
 
     @Test
@@ -92,7 +112,7 @@ class AuthControllerTest extends BaseControllerTest {
 
     @Test
     void resetPassword_ValidRequest_ReturnsSuccessMessage() throws Exception {
-        PasswordResetRequest req = new PasswordResetRequest("test@vilt-group.com", "token123", "newpassword123");
+        PasswordResetRequest req = new PasswordResetRequest("test@vilt-group.com", "token123", "NewPassword123!");
 
         doNothing().when(authService).resetPassword(any(PasswordResetRequest.class));
 
@@ -101,5 +121,15 @@ class AuthControllerTest extends BaseControllerTest {
                         .content(asJsonString(req)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.message").value("Senha alterada com sucesso!"));
+    }
+
+    @Test
+    void resetPassword_WeakPassword_ReturnsBadRequest() throws Exception {
+        PasswordResetRequest req = new PasswordResetRequest("test@vilt-group.com", "token123", "weak");
+
+        mockMvc.perform(post("/api/v1/auth/reset-password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(asJsonString(req)))
+                .andExpect(status().isBadRequest());
     }
 }
