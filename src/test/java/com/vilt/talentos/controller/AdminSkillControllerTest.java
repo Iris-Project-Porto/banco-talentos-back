@@ -32,6 +32,23 @@ class AdminSkillControllerTest extends BaseControllerTest {
 
     @Test
     @WithMockUser(roles = "ADMIN")
+    @DisplayName("Deve criar nova skill com sucesso")
+    void create_Success() throws Exception {
+        SkillRequest request = new SkillRequest("PYTHON", SkillType.HARD, 1);
+        SkillResponse response = new SkillResponse(UUID.randomUUID(), "PYTHON", SkillType.HARD, true, 1);
+
+        when(skillService.create(any(SkillRequest.class))).thenReturn(response);
+
+        mockMvc.perform(post("/api/v1/admin/skills")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(asJsonString(request)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.name").value("PYTHON"));
+    }
+
+    @Test
+    @WithMockUser(roles = "ADMIN")
     @DisplayName("Deve listar skills ativas com sucesso")
     void listActive_Success() throws Exception {
         SkillResponse response = new SkillResponse(UUID.randomUUID(), "JAVA", SkillType.HARD, true, 1);
@@ -40,6 +57,14 @@ class AdminSkillControllerTest extends BaseControllerTest {
         mockMvc.perform(get("/api/v1/admin/skills/active"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[0].name").value("JAVA"));
+    }
+
+    @Test
+    @WithMockUser(roles = "USER")
+    @DisplayName("Deve negar acesso para role não-ADMIN")
+    void accessDenied_NonAdmin() throws Exception {
+        mockMvc.perform(get("/api/v1/admin/skills/active"))
+                .andExpect(status().isForbidden());
     }
 
     @Test

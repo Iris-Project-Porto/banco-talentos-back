@@ -38,8 +38,8 @@ public class AdminController {
 
     @GetMapping("/profiles")
     @Operation(summary = "Listar todos os perfis", description = "Retorna uma página com todos os perfis cadastrados no sistema.")
-    public Page<ProfileResponse> all(@PageableDefault(size = 20) Pageable pageable) {
-        return profileService.getAll(pageable).map(profileMapper::toResponse);
+    public Page<ProfileResponse> all(@RequestParam(required = false) String skill, @PageableDefault(size = 20) Pageable pageable) {
+        return profileService.getAllWithFilters(null, skill, pageable).map(profileMapper::toResponse);
     }
 
     @GetMapping("/profiles/pending")
@@ -50,8 +50,8 @@ public class AdminController {
 
     @GetMapping("/profiles/active")
     @Operation(summary = "Banco de talentos", description = "Retorna perfis com status ATIVO.")
-    public Page<ProfileResponse> ativos(@PageableDefault(size = 20) Pageable pageable) {
-        return profileService.getByStatus(DomainStatus.ACTIVE, pageable).map(profileMapper::toResponse);
+    public Page<ProfileResponse> ativos(@RequestParam(required = false) String skill, @PageableDefault(size = 20) Pageable pageable) {
+        return profileService.getAllWithFilters(DomainStatus.ACTIVE, skill, pageable).map(profileMapper::toResponse);
     }
 
     @GetMapping("/profiles/{id}")

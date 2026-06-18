@@ -25,6 +25,13 @@ public class AdminSkillController {
 
     private final SkillService skillService;
 
+    @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
+    @Operation(summary = "Criar nova skill (Admin)", description = "Permite criar skills HARD ou SOFT manualmente.")
+    public SkillResponse create(@RequestBody @Valid SkillRequest request) {
+        return skillService.create(request);
+    }
+
     @GetMapping("/active")
     @Operation(summary = "Listar skills ativas (Admin)")
     public Page<SkillResponse> listActive(@PageableDefault(size = 50) Pageable pageable) {
