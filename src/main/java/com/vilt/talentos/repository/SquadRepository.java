@@ -12,13 +12,13 @@ import java.util.UUID;
 
 @Repository
 public interface SquadRepository extends JpaRepository<Squad, UUID> {
-    @EntityGraph(attributePaths = {"project", "skills"})
+    @EntityGraph(attributePaths = {"project"})
     Page<Squad> findByActive(boolean active, Pageable pageable);
 
-    @EntityGraph(attributePaths = {"project", "skills"})
+    @EntityGraph(attributePaths = {"project"})
     List<Squad> findByProject_Id(UUID projectId);
 
     @Override
-    @EntityGraph(attributePaths = {"project", "skills"})
+    @EntityGraph(attributePaths = {"project"})
     Page<Squad> findAll(Pageable pageable);
 }
