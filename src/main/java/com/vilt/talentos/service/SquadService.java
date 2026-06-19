@@ -22,7 +22,6 @@ public class SquadService {
 
     private final SquadRepository squadRepo;
     private final ProjectRepository projectRepo;
-    private final SkillRepository skillRepo;
     private final UserRepository userRepo;
     private final SquadMapper mapper;
 
@@ -58,14 +57,8 @@ public class SquadService {
                     .orElseThrow(() -> new ResourceNotFoundException("Projeto não encontrado"));
         }
 
-        List<Skill> skills = List.of();
-        if (request.skillIds() != null && !request.skillIds().isEmpty()) {
-            skills = skillRepo.findAllById(request.skillIds());
-        }
-
         Squad squad = mapper.toEntity(request);
         squad.setProject(project);
-        squad.setSkills(skills);
         squad.setActive(true);
         squad.setCreatedBy(currentUser);
         
@@ -82,14 +75,8 @@ public class SquadService {
                     .orElseThrow(() -> new ResourceNotFoundException("Projeto não encontrado"));
         }
 
-        List<Skill> skills = List.of();
-        if (request.skillIds() != null && !request.skillIds().isEmpty()) {
-            skills = skillRepo.findAllById(request.skillIds());
-        }
-
         mapper.updateEntity(request, squad);
         squad.setProject(project);
-        squad.setSkills(skills);
         squad.setUpdatedBy(getCurrentUser());
         
         return mapper.toResponse(squadRepo.save(squad));

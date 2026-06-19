@@ -10,6 +10,5 @@ public record SquadRequest(
     String description,
     String portoCoordinator,
     String projectManager,
-    UUID projectId,
-    List<UUID> skillIds
+    UUID projectId
 ) {}

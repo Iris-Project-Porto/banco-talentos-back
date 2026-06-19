@@ -12,7 +12,6 @@ public record SquadResponse(
     String projectManager,
     String projectName,
     UUID projectId,
-    List<String> skills,
     boolean active,
     Instant createdAt,
     Instant updatedAt,

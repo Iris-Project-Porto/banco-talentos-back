@@ -2,8 +2,8 @@ package com.vilt.talentos.controller;
 
 import com.vilt.talentos.dto.JobPostingRequest;
 import com.vilt.talentos.dto.JobPostingResponse;
-import com.vilt.talentos.entity.DomainStatus;
 import com.vilt.talentos.entity.ExperienceLevel;
+import com.vilt.talentos.entity.JobPostingStatus;
 import com.vilt.talentos.service.JobPostingService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -36,7 +36,7 @@ class AdminJobPostingControllerTest extends BaseControllerTest {
     @WithMockUser(roles = "ADMIN")
     @DisplayName("Deve listar vagas ativas com sucesso")
     void listActive_Success() throws Exception {
-        JobPostingResponse response = new JobPostingResponse(UUID.randomUUID(), "Projeto", UUID.randomUUID(), "Squad", UUID.randomUUID(), ExperienceLevel.SENIOR, "Senior", "Desc", "Reqs", "Recruiter", 4, DomainStatus.ACTIVE, "Notes", Instant.now(), false, true, Instant.now(), null, "admin", null);
+        JobPostingResponse response = createDummyResponse(UUID.randomUUID(), "Projeto", "Squad", true);
         when(jobPostingService.findAllActive(any(Pageable.class))).thenReturn(new PageImpl<>(List.of(response)));
 
         mockMvc.perform(get("/api/v1/admin/job-postings/active"))
@@ -48,7 +48,7 @@ class AdminJobPostingControllerTest extends BaseControllerTest {
     @WithMockUser(roles = "ADMIN")
     @DisplayName("Deve listar vagas inativas com sucesso")
     void listInactive_Success() throws Exception {
-        JobPostingResponse response = new JobPostingResponse(UUID.randomUUID(), "Projeto", UUID.randomUUID(), "Squad", UUID.randomUUID(), ExperienceLevel.SENIOR, "Senior", "Desc", "Reqs", "Recruiter", 4, DomainStatus.INACTIVE, "Notes", Instant.now(), false, false, Instant.now(), null, "admin", null);
+        JobPostingResponse response = createDummyResponse(UUID.randomUUID(), "Projeto", "Squad", false);
         when(jobPostingService.findAllInactive(any(Pageable.class))).thenReturn(new PageImpl<>(List.of(response)));
 
         mockMvc.perform(get("/api/v1/admin/job-postings/inactive"))
@@ -61,7 +61,7 @@ class AdminJobPostingControllerTest extends BaseControllerTest {
     @DisplayName("Deve buscar vaga por ID com sucesso")
     void getById_Success() throws Exception {
         UUID id = UUID.randomUUID();
-        JobPostingResponse response = new JobPostingResponse(id, "Projeto", UUID.randomUUID(), "Squad", UUID.randomUUID(), ExperienceLevel.SENIOR, "Senior", "Desc", "Reqs", "Recruiter", 4, DomainStatus.ACTIVE, "Notes", Instant.now(), false, true, Instant.now(), null, "admin", null);
+        JobPostingResponse response = createDummyResponse(id, "Projeto", "Squad", true);
         when(jobPostingService.findById(id)).thenReturn(response);
 
         mockMvc.perform(get("/api/v1/admin/job-postings/{id}", id))
@@ -73,8 +73,8 @@ class AdminJobPostingControllerTest extends BaseControllerTest {
     @WithMockUser(roles = "ADMIN")
     @DisplayName("Deve criar nova vaga com sucesso")
     void create_Success() throws Exception {
-        JobPostingRequest request = new JobPostingRequest(UUID.randomUUID(), UUID.randomUUID(), ExperienceLevel.PLENO, "Desc", "Reqs", "Recruiter", 4, DomainStatus.ACTIVE.name(), "Notes", Instant.now(), false);
-        JobPostingResponse response = new JobPostingResponse(UUID.randomUUID(), "Projeto", request.projectId(), "Squad", request.squadId(), request.experienceLevel(), "Pleno", request.description(), request.requirements(), request.recruiter(), request.estimatedAllocationWeeks(), DomainStatus.ACTIVE, request.notes(), request.openingDate(), request.isUrgent(), true, Instant.now(), null, "admin", null);
+        JobPostingRequest request = createDummyRequest(UUID.randomUUID(), UUID.randomUUID());
+        JobPostingResponse response = createDummyResponse(UUID.randomUUID(), "Projeto", "Squad", true);
         
         when(jobPostingService.create(any(JobPostingRequest.class))).thenReturn(response);
 
@@ -91,8 +91,8 @@ class AdminJobPostingControllerTest extends BaseControllerTest {
     @DisplayName("Deve atualizar vaga com sucesso")
     void update_Success() throws Exception {
         UUID id = UUID.randomUUID();
-        JobPostingRequest request = new JobPostingRequest(UUID.randomUUID(), UUID.randomUUID(), ExperienceLevel.PLENO, "Desc Updated", "Reqs", "Recruiter", 4, DomainStatus.ACTIVE.name(), "Notes", Instant.now(), false);
-        JobPostingResponse response = new JobPostingResponse(id, "Projeto", request.projectId(), "Squad", request.squadId(), request.experienceLevel(), "Pleno", request.description(), request.requirements(), request.recruiter(), request.estimatedAllocationWeeks(), DomainStatus.ACTIVE, request.notes(), request.openingDate(), request.isUrgent(), true, Instant.now(), null, "admin", null);
+        JobPostingRequest request = createDummyRequest(UUID.randomUUID(), UUID.randomUUID());
+        JobPostingResponse response = createDummyResponse(id, "Projeto", "Squad", true);
 
         when(jobPostingService.update(eq(id), any(JobPostingRequest.class))).thenReturn(response);
 
@@ -101,7 +101,7 @@ class AdminJobPostingControllerTest extends BaseControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(asJsonString(request)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.description").value("Desc Updated"));
+                .andExpect(jsonPath("$.description").value("Description"));
     }
 
     @Test
@@ -126,5 +126,56 @@ class AdminJobPostingControllerTest extends BaseControllerTest {
                 .andExpect(status().isNoContent());
 
         verify(jobPostingService).setActiveStatus(id, false);
+    }
+
+    private JobPostingRequest createDummyRequest(UUID projectId, UUID squadId) {
+        return new JobPostingRequest(
+                "VAC-001",
+                "Title",
+                projectId,
+                squadId,
+                ExperienceLevel.PLENO,
+                "Description",
+                "Requirements",
+                "Recruiter",
+                4,
+                JobPostingStatus.OPEN.name(),
+                "Remote",
+                "Notes",
+                Instant.now(),
+                null,
+                false,
+                List.of()
+        );
+    }
+
+    private JobPostingResponse createDummyResponse(UUID id, String projectName, String squadName, boolean active) {
+        return new JobPostingResponse(
+                id,
+                "VAC-001",
+                "Title",
+                projectName,
+                UUID.randomUUID(),
+                squadName,
+                UUID.randomUUID(),
+                ExperienceLevel.SENIOR,
+                "Senior",
+                "Description",
+                "Requirements",
+                "Recruiter",
+                4,
+                JobPostingStatus.OPEN,
+                "Remote",
+                "Notes",
+                Instant.now(),
+                null,
+                false,
+                active,
+                List.of(),
+                Instant.now(),
+                null,
+                "admin",
+                null
+        );
     }
 }
