@@ -33,15 +33,6 @@ public class Squad extends BaseAuditableEntity {
     @JoinColumn(name = "project_id")
     private Project project;
 
-    @ManyToMany
-    @JoinTable(
-        name = "squad_skills",
-        joinColumns = @JoinColumn(name = "squad_id"),
-        inverseJoinColumns = @JoinColumn(name = "skill_id")
-    )
-    @Builder.Default
-    private List<Skill> skills = new ArrayList<>();
-
     @Builder.Default
     @Column(nullable = false)
     private boolean active = true;

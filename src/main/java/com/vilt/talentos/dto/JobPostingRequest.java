@@ -5,9 +5,15 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 public record JobPostingRequest(
+        String vacancyCode,
+
+        @NotBlank(message = "O título da vaga é obrigatório")
+        String title,
+
         @NotNull(message = "O ID do projeto é obrigatório")
         UUID projectId,
 
@@ -25,15 +31,21 @@ public record JobPostingRequest(
         @NotBlank(message = "O recrutador é obrigatório")
         String recruiter,
 
-        int estimatedAllocationWeeks,
+        Integer estimatedAllocationWeeks,
 
         @NotBlank(message = "O status é obrigatório")
         String status,
+
+        String modality,
 
         String notes,
 
         @NotNull(message = "A data de abertura é obrigatória")
         Instant openingDate,
 
-        Boolean isUrgent
+        Instant closingDate,
+
+        Boolean isUrgent,
+
+        List<JobPostingSkillRequest> skills
 ) {}

@@ -34,7 +34,7 @@ class AdminSquadControllerTest extends BaseControllerTest {
     @WithMockUser(roles = "ADMIN")
     @DisplayName("Deve listar squads ativas com sucesso")
     void listActive_Success() throws Exception {
-        SquadResponse response = new SquadResponse(UUID.randomUUID(), "Squad 1", "Desc", "Coord", "GP", "Projeto", UUID.randomUUID(), List.of("Java"), true, Instant.now(), Instant.now(), "admin", "admin");
+        SquadResponse response = new SquadResponse(UUID.randomUUID(), "Squad 1", "Desc", "Coord", "GP", "Projeto", UUID.randomUUID(), true, Instant.now(), Instant.now(), "admin", "admin");
         when(squadService.findAllActive(any(Pageable.class))).thenReturn(new PageImpl<>(List.of(response)));
 
         mockMvc.perform(get("/api/v1/admin/squads/active"))
@@ -46,7 +46,7 @@ class AdminSquadControllerTest extends BaseControllerTest {
     @WithMockUser(roles = "ADMIN")
     @DisplayName("Deve listar squads inativas com sucesso")
     void listInactive_Success() throws Exception {
-        SquadResponse response = new SquadResponse(UUID.randomUUID(), "Squad 2", "Desc", "Coord", "GP", "Projeto", UUID.randomUUID(), List.of("Java"), false, Instant.now(), Instant.now(), "admin", "admin");
+        SquadResponse response = new SquadResponse(UUID.randomUUID(), "Squad 2", "Desc", "Coord", "GP", "Projeto", UUID.randomUUID(), false, Instant.now(), Instant.now(), "admin", "admin");
         when(squadService.findAllInactive(any(Pageable.class))).thenReturn(new PageImpl<>(List.of(response)));
 
         mockMvc.perform(get("/api/v1/admin/squads/inactive"))
@@ -59,7 +59,7 @@ class AdminSquadControllerTest extends BaseControllerTest {
     @DisplayName("Deve buscar squad por ID com sucesso")
     void getById_Success() throws Exception {
         UUID id = UUID.randomUUID();
-        SquadResponse response = new SquadResponse(id, "Squad 1", "Desc", "Coord", "GP", "Projeto", UUID.randomUUID(), List.of("Java"), true, Instant.now(), Instant.now(), "admin", "admin");
+        SquadResponse response = new SquadResponse(id, "Squad 1", "Desc", "Coord", "GP", "Projeto", UUID.randomUUID(), true, Instant.now(), Instant.now(), "admin", "admin");
         when(squadService.findById(id)).thenReturn(response);
 
         mockMvc.perform(get("/api/v1/admin/squads/{id}", id))
@@ -71,8 +71,8 @@ class AdminSquadControllerTest extends BaseControllerTest {
     @WithMockUser(roles = "ADMIN")
     @DisplayName("Deve criar nova squad com sucesso")
     void create_Success() throws Exception {
-        SquadRequest request = new SquadRequest("Nova Squad", "Desc", "Coord", "GP", UUID.randomUUID(), List.of(UUID.randomUUID()));
-        SquadResponse response = new SquadResponse(UUID.randomUUID(), "Nova Squad", "Desc", "Coord", "GP", "Projeto", request.projectId(), List.of("Java"), true, Instant.now(), Instant.now(), "admin", "admin");
+        SquadRequest request = new SquadRequest("Nova Squad", "Desc", "Coord", "GP", UUID.randomUUID());
+        SquadResponse response = new SquadResponse(UUID.randomUUID(), "Nova Squad", "Desc", "Coord", "GP", "Projeto", request.projectId(), true, Instant.now(), Instant.now(), "admin", "admin");
         
         when(squadService.create(any(SquadRequest.class))).thenReturn(response);
 
@@ -89,8 +89,8 @@ class AdminSquadControllerTest extends BaseControllerTest {
     @DisplayName("Deve atualizar squad com sucesso")
     void update_Success() throws Exception {
         UUID id = UUID.randomUUID();
-        SquadRequest request = new SquadRequest("Squad Atualizada", "Desc", "Coord", "GP", UUID.randomUUID(), List.of(UUID.randomUUID()));
-        SquadResponse response = new SquadResponse(id, "Squad Atualizada", "Desc", "Coord", "GP", "Projeto", request.projectId(), List.of("Java"), true, Instant.now(), Instant.now(), "admin", "admin");
+        SquadRequest request = new SquadRequest("Squad Atualizada", "Desc", "Coord", "GP", UUID.randomUUID());
+        SquadResponse response = new SquadResponse(id, "Squad Atualizada", "Desc", "Coord", "GP", "Projeto", request.projectId(), true, Instant.now(), Instant.now(), "admin", "admin");
 
         when(squadService.update(eq(id), any(SquadRequest.class))).thenReturn(response);
 
