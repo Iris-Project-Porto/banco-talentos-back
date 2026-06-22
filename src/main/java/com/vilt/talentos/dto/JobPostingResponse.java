@@ -20,7 +20,6 @@ public record JobPostingResponse(
         ExperienceLevel experienceLevel,
         String experienceLevelDescription,
         String description,
-        String requirements,
         String recruiter,
         Integer estimatedAllocationWeeks,
 

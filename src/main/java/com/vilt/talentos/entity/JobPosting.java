@@ -40,9 +40,6 @@ public class JobPosting extends BaseAuditableEntity {
     private String description; // Não obrigatório
 
     @Column(nullable = false)
-    private String requirements;
-
-    @Column(nullable = false)
     private String recruiter;
 
     @Column(name = "estimated_allocation_weeks")

@@ -25,9 +25,6 @@ public record JobPostingRequest(
 
         String description,
 
-        @NotBlank(message = "Os requisitos são obrigatórios")
-        String requirements,
-
         @NotBlank(message = "O recrutador é obrigatório")
         String recruiter,
 
