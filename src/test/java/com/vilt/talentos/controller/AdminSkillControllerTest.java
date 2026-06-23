@@ -34,8 +34,8 @@ class AdminSkillControllerTest extends BaseControllerTest {
     @WithMockUser(roles = "ADMIN")
     @DisplayName("Deve criar nova skill com sucesso")
     void create_Success() throws Exception {
-        SkillRequest request = new SkillRequest("PYTHON", SkillType.HARD, 1);
-        SkillResponse response = new SkillResponse(UUID.randomUUID(), "PYTHON", SkillType.HARD, true, 1);
+        SkillRequest request = new SkillRequest("PYTHON", SkillType.HARD);
+        SkillResponse response = new SkillResponse(UUID.randomUUID(), "PYTHON", SkillType.HARD, true);
 
         when(skillService.create(any(SkillRequest.class))).thenReturn(response);
 
@@ -51,7 +51,7 @@ class AdminSkillControllerTest extends BaseControllerTest {
     @WithMockUser(roles = "ADMIN")
     @DisplayName("Deve listar skills ativas com sucesso")
     void listActive_Success() throws Exception {
-        SkillResponse response = new SkillResponse(UUID.randomUUID(), "JAVA", SkillType.HARD, true, 1);
+        SkillResponse response = new SkillResponse(UUID.randomUUID(), "JAVA", SkillType.HARD, true);
         when(skillService.findAllActive(any(Pageable.class))).thenReturn(new PageImpl<>(List.of(response)));
 
         mockMvc.perform(get("/api/v1/admin/skills/active"))
@@ -71,7 +71,7 @@ class AdminSkillControllerTest extends BaseControllerTest {
     @WithMockUser(roles = "ADMIN")
     @DisplayName("Deve listar skills inativas com sucesso")
     void listInactive_Success() throws Exception {
-        SkillResponse response = new SkillResponse(UUID.randomUUID(), "COBOL", SkillType.HARD, false, 1);
+        SkillResponse response = new SkillResponse(UUID.randomUUID(), "COBOL", SkillType.HARD, false);
         when(skillService.findAllInactive(any(Pageable.class))).thenReturn(new PageImpl<>(List.of(response)));
 
         mockMvc.perform(get("/api/v1/admin/skills/inactive"))
@@ -84,7 +84,7 @@ class AdminSkillControllerTest extends BaseControllerTest {
     @DisplayName("Deve buscar skill por ID com sucesso")
     void getById_Success() throws Exception {
         UUID id = UUID.randomUUID();
-        SkillResponse response = new SkillResponse(id, "JAVA", SkillType.HARD, true, 1);
+        SkillResponse response = new SkillResponse(id, "JAVA", SkillType.HARD, true);
         when(skillService.findById(id)).thenReturn(response);
 
         mockMvc.perform(get("/api/v1/admin/skills/{id}", id))
@@ -97,8 +97,8 @@ class AdminSkillControllerTest extends BaseControllerTest {
     @DisplayName("Deve atualizar skill com sucesso")
     void update_Success() throws Exception {
         UUID id = UUID.randomUUID();
-        SkillRequest request = new SkillRequest("JAVA 21", SkillType.HARD, 2);
-        SkillResponse response = new SkillResponse(id, "JAVA 21", SkillType.HARD, true, 2);
+        SkillRequest request = new SkillRequest("JAVA 21", SkillType.HARD);
+        SkillResponse response = new SkillResponse(id, "JAVA 21", SkillType.HARD, true);
 
         when(skillService.update(eq(id), any(SkillRequest.class))).thenReturn(response);
 

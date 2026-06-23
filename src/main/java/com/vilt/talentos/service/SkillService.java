@@ -52,7 +52,6 @@ public class SkillService {
                 .map(existing -> {
                     if (!existing.isActive()) {
                         existing.setActive(true);
-                        existing.setImportanceWeight(request.importanceWeight() != null ? request.importanceWeight() : 1);
                         return mapper.toResponse(skillRepo.save(existing));
                     }
                     return mapper.toResponse(existing);

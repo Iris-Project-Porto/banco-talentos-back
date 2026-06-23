@@ -128,7 +128,7 @@ class AdminControllerTest extends BaseControllerTest {
     @DisplayName("Deve obter KPIs do dashboard com sucesso")
     void dashboard_Success() throws Exception {
         DashboardKpisResponse response = new DashboardKpisResponse(
-                10, 5L, 5L, List.of(), List.of(), java.util.Map.of());
+                10, 5L, 5L, List.of(), java.util.Map.of());
         when(adminService.getDashboardKpis()).thenReturn(response);
 
         mockMvc.perform(get("/api/v1/admin/dashboard"))

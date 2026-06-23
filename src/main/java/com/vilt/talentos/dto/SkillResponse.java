@@ -7,6 +7,5 @@ public record SkillResponse(
     UUID id,
     String name,
     SkillType type,
-    boolean active,
-    Integer importanceWeight
+    boolean active
 ) {}
