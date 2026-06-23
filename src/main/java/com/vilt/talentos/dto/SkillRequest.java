@@ -9,7 +9,5 @@ public record SkillRequest(
     String name,
     
     @NotNull(message = "O tipo da skill é obrigatório")
-    SkillType type,
-    
-    Integer importanceWeight
+    SkillType type
 ) {}

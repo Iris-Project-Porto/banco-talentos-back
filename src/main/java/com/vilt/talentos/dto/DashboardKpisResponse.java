@@ -18,10 +18,7 @@ public record DashboardKpisResponse(
     
     @Schema(description = "Top skills por proficiência (habilidade)")
     List<SkillKpi> topSkillsByProficiency,
-    
-    @Schema(description = "Top skills por importância")
-    List<SkillKpi> topSkillsByImportance,
-    
+
     @Schema(description = "Distribuição por nível de experiência")
     Map<ExperienceLevel, Long> levelCount
 ) {
