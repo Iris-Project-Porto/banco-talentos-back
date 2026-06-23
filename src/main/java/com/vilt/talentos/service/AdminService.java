@@ -39,22 +39,13 @@ public class AdminService {
         var active = all.stream().filter(p -> DomainStatus.ACTIVE == p.getStatus()).count();
         var pending = all.stream().filter(p -> DomainStatus.PENDING == p.getStatus()).count();
 
-        // Visão 1: Skills mais dominadas pelos recursos (Soma dos níveis de proficiência)
+        // Skills mais dominadas pelos recursos (Soma dos níveis de proficiência (domínio/conhecimento))
         var skillsByProficiency = all.stream()
             .flatMap(p -> p.getSkills().stream())
             .filter(ps -> ps.getSkill().getType() == SkillType.HARD)
             .collect(Collectors.groupingBy(
                 ps -> ps.getSkill().getName(),
                 Collectors.summingLong(ps -> ps.getProficiencyLevel() != null ? ps.getProficiencyLevel() : 0)
-            ));
-
-        // Visão 2: Skills mais estratégicas (Soma dos pesos de importância definidos pelos admins)
-        var skillsByImportance = all.stream()
-            .flatMap(p -> p.getSkills().stream())
-            .filter(ps -> ps.getSkill().getType() == SkillType.HARD)
-            .collect(Collectors.groupingBy(
-                ps -> ps.getSkill().getName(),
-                Collectors.summingLong(ps -> ps.getSkill().getImportanceWeight() != null ? ps.getSkill().getImportanceWeight() : 1)
             ));
 
         var levelCount = all.stream()
@@ -67,7 +58,6 @@ public class AdminService {
             active,
             pending,
             mapToSkillKpiList(skillsByProficiency),
-            mapToSkillKpiList(skillsByImportance),
             levelCount
         );
     }
