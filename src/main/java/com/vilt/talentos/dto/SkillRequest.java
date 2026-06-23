@@ -1,5 +1,6 @@
 package com.vilt.talentos.dto;
 
+import com.vilt.talentos.entity.SkillCategory;
 import com.vilt.talentos.entity.SkillType;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -9,5 +10,9 @@ public record SkillRequest(
     String name,
     
     @NotNull(message = "O tipo da skill é obrigatório")
-    SkillType type
+    SkillType type,
+    
+    String description,
+    
+    SkillCategory category
 ) {}
