@@ -31,7 +31,7 @@ class SkillControllerTest extends BaseControllerTest {
     @Test
     @WithMockUser
     void getAllActive_WhenCalled_ReturnsActiveSkills() throws Exception {
-        SkillResponse skill = new SkillResponse(UUID.randomUUID(), "JAVA", SkillType.HARD, true);
+        SkillResponse skill = new SkillResponse(UUID.randomUUID(), "JAVA", SkillType.HARD, true, null, null);
 
         when(skillService.findAllActive(any(Pageable.class))).thenReturn(new PageImpl<>(List.of(skill)));
 
@@ -43,8 +43,8 @@ class SkillControllerTest extends BaseControllerTest {
     @Test
     @WithMockUser
     void create_ValidRequest_ReturnsCreatedSkill() throws Exception {
-        SkillRequest req = new SkillRequest("Python", SkillType.HARD);
-        SkillResponse res = new SkillResponse(UUID.randomUUID(), "PYTHON", SkillType.HARD, true);
+        SkillRequest req = new SkillRequest("Python", SkillType.HARD, null, null);
+        SkillResponse res = new SkillResponse(UUID.randomUUID(), "PYTHON", SkillType.HARD, true, null, null);
 
         when(skillService.create(any(SkillRequest.class))).thenReturn(res);
 

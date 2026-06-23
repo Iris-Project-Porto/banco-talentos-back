@@ -27,4 +27,15 @@ public class Skill extends BaseAuditableEntity {
     @Builder.Default
     @Column(nullable = false)
     private boolean active = true;
+
+    @Column(length = 500)
+    private String description;
+
+    @Enumerated(EnumType.STRING)
+    @Column
+    private SkillCategory category;
+
+    @OneToMany(mappedBy = "skill", fetch = FetchType.LAZY)
+    @Builder.Default
+    private java.util.List<ProfileSkill> profileSkills = new java.util.ArrayList<>();
 }

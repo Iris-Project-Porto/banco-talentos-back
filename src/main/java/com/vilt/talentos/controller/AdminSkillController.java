@@ -1,7 +1,9 @@
 package com.vilt.talentos.controller;
 
+import com.vilt.talentos.dto.AdminSkillListResponse;
 import com.vilt.talentos.dto.SkillRequest;
 import com.vilt.talentos.dto.SkillResponse;
+import com.vilt.talentos.entity.SkillCategory;
 import com.vilt.talentos.service.SkillService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -24,6 +26,16 @@ import java.util.UUID;
 public class AdminSkillController {
 
     private final SkillService skillService;
+
+    @GetMapping
+    @Operation(summary = "Listar skills para gerenciamento (Admin)",
+            description = "Retorna skills com dados agregados de recursos (avatares, média de proficiência) e suporte a filtros por nome e categoria.")
+    public Page<AdminSkillListResponse> listForManagement(
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) SkillCategory category,
+            @PageableDefault(size = 20) Pageable pageable) {
+        return skillService.getAdminSkills(name, category, pageable);
+    }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
