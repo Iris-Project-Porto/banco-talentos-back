@@ -5,13 +5,16 @@ import com.vilt.talentos.service.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/v1/auth")
 @RequiredArgsConstructor
+@Validated
 @Tag(name = "Auth", description = "Autenticação, Registro e Recuperação de Senha")
 public class AuthController {
 
@@ -50,6 +53,15 @@ public class AuthController {
     public ApiResponse<?> forgotPassword(@RequestBody @Valid ForgotPasswordRequest req) {
         authService.forgotPassword(req.email());
         return ApiResponse.success("Um link de redefinição foi enviado para o seu e-mail.");
+    }
+
+    @GetMapping("/validate-reset-token")
+    @Operation(summary = "Validar token de redefinição", description = "Verifica se o link de redefinição de senha ainda é válido (máximo de 1 hora).")
+    public ApiResponse<?> validateResetToken(
+            @RequestParam @NotBlank(message = "O e-mail é obrigatório.") String email,
+            @RequestParam @NotBlank(message = "O token é obrigatório.") String token) {
+        authService.validateResetToken(email, token);
+        return ApiResponse.success("Token válido.");
     }
 
     @PostMapping("/reset-password")

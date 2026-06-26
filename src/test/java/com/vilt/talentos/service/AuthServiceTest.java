@@ -96,4 +96,51 @@ class AuthServiceTest {
 
         assertThrows(BadRequestException.class, () -> authService.resetPassword(req));
     }
+
+    @Test
+    void validateResetToken_ValidToken_DoesNotThrow() {
+        String token = "valid-token";
+        String email = "test@vilt-group.com";
+        User user = User.builder()
+                .email(email)
+                .resetToken(token)
+                .resetTokenExpires(Instant.now().plus(1, ChronoUnit.HOURS))
+                .build();
+
+        when(userRepo.findByResetToken(token)).thenReturn(Optional.of(user));
+        when(appProperties.getAllowedEmailDomain()).thenReturn("vilt-group.com");
+
+        authService.validateResetToken(email, token);
+    }
+
+    @Test
+    void validateResetToken_ExpiredToken_ThrowsBadRequestException() {
+        String token = "expired-token";
+        String email = "test@vilt-group.com";
+        User user = User.builder()
+                .email(email)
+                .resetToken(token)
+                .resetTokenExpires(Instant.now().minus(1, ChronoUnit.HOURS))
+                .build();
+
+        when(userRepo.findByResetToken(token)).thenReturn(Optional.of(user));
+        when(appProperties.getAllowedEmailDomain()).thenReturn("vilt-group.com");
+
+        assertThrows(BadRequestException.class, () -> authService.validateResetToken(email, token));
+    }
+
+    @Test
+    void validateResetToken_EmailMismatch_ThrowsBadRequestException() {
+        String token = "valid-token";
+        User user = User.builder()
+                .email("owner@vilt-group.com")
+                .resetToken(token)
+                .resetTokenExpires(Instant.now().plus(1, ChronoUnit.HOURS))
+                .build();
+
+        when(userRepo.findByResetToken(token)).thenReturn(Optional.of(user));
+        when(appProperties.getAllowedEmailDomain()).thenReturn("vilt-group.com");
+
+        assertThrows(BadRequestException.class, () -> authService.validateResetToken("other@vilt-group.com", token));
+    }
 }

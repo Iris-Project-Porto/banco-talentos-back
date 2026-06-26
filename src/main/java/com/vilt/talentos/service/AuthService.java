@@ -168,19 +168,34 @@ public class AuthService {
         );
     }
 
-    public void resetPassword(PasswordResetRequest req) {
-        normalizeAndValidateEmail(req.email());
-        User user = userRepo.findByResetToken(req.token())
-                .orElseThrow(() -> new BadRequestException("Token inválido ou expirado."));
+    public void validateResetToken(String rawEmail, String token) {
+        findValidResetUser(rawEmail, token);
+    }
 
-        if (user.getResetTokenExpires() == null || user.getResetTokenExpires().isBefore(Instant.now())) {
-            throw new BadRequestException("Token inválido ou expirado.");
-        }
+    public void resetPassword(PasswordResetRequest req) {
+        User user = findValidResetUser(req.email(), req.token());
 
         user.setPassword(passwordEncoder.encode(req.newPassword()));
         user.setResetToken(null);
         user.setResetTokenExpires(null);
         userRepo.save(user);
+    }
+
+    private User findValidResetUser(String rawEmail, String token) {
+        String email = normalizeAndValidateEmail(rawEmail);
+
+        User user = userRepo.findByResetToken(token)
+                .orElseThrow(() -> new BadRequestException("Token inválido ou expirado."));
+
+        if (!user.getEmail().equalsIgnoreCase(email)) {
+            throw new BadRequestException("Token inválido ou expirado.");
+        }
+
+        if (user.getResetTokenExpires() == null || !user.getResetTokenExpires().isAfter(Instant.now())) {
+            throw new BadRequestException("Token inválido ou expirado.");
+        }
+
+        return user;
     }
 
     private String normalizeAndValidateEmail(String email) {

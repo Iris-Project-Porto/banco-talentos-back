@@ -13,6 +13,7 @@ import java.util.UUID;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -108,6 +109,17 @@ class AuthControllerTest extends BaseControllerTest {
                         .content(asJsonString(req)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.message").value("Um link de redefinição foi enviado para o seu e-mail."));
+    }
+
+    @Test
+    void validateResetToken_ValidRequest_ReturnsSuccessMessage() throws Exception {
+        doNothing().when(authService).validateResetToken(any(String.class), any(String.class));
+
+        mockMvc.perform(get("/api/v1/auth/validate-reset-token")
+                        .param("email", "test@vilt-group.com")
+                        .param("token", "token123"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message").value("Token válido."));
     }
 
     @Test
