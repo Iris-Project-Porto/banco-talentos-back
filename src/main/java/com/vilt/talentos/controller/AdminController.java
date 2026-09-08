@@ -45,9 +45,9 @@ public class AdminController {
     private final ProfileMapper profileMapper;
 
     @GetMapping("/profiles")
-    @Operation(summary = "Listar todos os perfis", description = "Retorna uma página com todos os perfis cadastrados no sistema.")
+    @Operation(summary = "Listar recursos aprovados", description = "Retorna uma página apenas com perfis aprovados (status ACTIVE).")
     public Page<ProfileResponse> all(@RequestParam(required = false) String skill, @PageableDefault(size = 20) Pageable pageable) {
-        return profileService.getAllWithFilters(null, skill, pageable).map(profileMapper::toResponse);
+        return profileService.getAllWithFilters(DomainStatus.ACTIVE, skill, pageable).map(profileMapper::toResponse);
     }
 
     @GetMapping("/profiles/pending")
