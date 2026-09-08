@@ -65,15 +65,38 @@ class AdminControllerTest extends BaseControllerTest {
 
     @Test
     @WithMockUser(roles = "ADMIN")
-    @DisplayName("Deve listar todos os perfis com sucesso")
+    @DisplayName("Deve listar apenas recursos aprovados")
     void all_Success() throws Exception {
-        when(profileService.getAllWithFilters(isNull(), any(), any(Pageable.class))).thenReturn(new PageImpl<>(List.of(profile)));
+        when(profileService.getAllWithFilters(eq(DomainStatus.ACTIVE), isNull(), any(Pageable.class))).thenReturn(new PageImpl<>(List.of(profile)));
         when(profileMapper.toResponse(any(Profile.class))).thenReturn(profileResponse);
 
         mockMvc.perform(get("/api/v1/admin/profiles"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[0].status").value("ACTIVE"))
                 .andExpect(jsonPath("$.content[0].name").value("Test"));
+
+        verify(profileService).getAllWithFilters(eq(DomainStatus.ACTIVE), isNull(), any(Pageable.class));
+    }
+
+    @Test
+    @WithMockUser(roles = "ADMIN")
+    @DisplayName("Deve manter aprovação, habilidade e paginação na listagem de recursos")
+    void all_WithSkillAndPagination() throws Exception {
+        var pageable = org.springframework.data.domain.PageRequest.of(1, 5);
+        when(profileService.getAllWithFilters(DomainStatus.ACTIVE, "Java", pageable))
+                .thenReturn(new PageImpl<>(List.of(profile), pageable, 6));
+        when(profileMapper.toResponse(profile)).thenReturn(profileResponse);
+
+        mockMvc.perform(get("/api/v1/admin/profiles")
+                        .param("skill", "Java")
+                        .param("page", "1")
+                        .param("size", "5"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].status").value("ACTIVE"))
+                .andExpect(jsonPath("$.number").value(1))
+                .andExpect(jsonPath("$.totalElements").value(6));
+
+        verify(profileService).getAllWithFilters(DomainStatus.ACTIVE, "Java", pageable);
     }
 
     @Test
