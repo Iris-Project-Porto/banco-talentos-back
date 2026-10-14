@@ -11,7 +11,7 @@ import org.mapstruct.*;
 
 @Mapper(componentModel = "spring", builder = @Builder(disableBuilder = true))
 public interface JobPostingMapper {
-    
+
     @Mapping(target = "projectName", source = "project.name")
     @Mapping(target = "projectId", source = "project.id")
     @Mapping(target = "squadName", source = "squad.name")
@@ -22,6 +22,10 @@ public interface JobPostingMapper {
     JobPostingResponse toResponse(JobPosting jobPosting);
 
     @Mapping(target = "name", source = "skill.name")
+    @Mapping(target = "type", source = "type")
+    @Mapping(target = "minLevel", source = "minLevel")
+    @Mapping(target = "description", source = "description")
+    @Mapping(target = "importanceWeight", source = "importanceWeight")
     JobPostingSkillResponse toSkillResponse(JobPostingSkill skill);
 
     @Mapping(target = "id", ignore = true)
@@ -29,6 +33,7 @@ public interface JobPostingMapper {
     @Mapping(target = "project", ignore = true)
     @Mapping(target = "squad", ignore = true)
     @Mapping(target = "skills", ignore = true)
+
     @Mapping(target = "status", source = "status", qualifiedByName = "stringToStatus")
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
@@ -47,11 +52,13 @@ public interface JobPostingMapper {
     @Mapping(target = "updatedAt", ignore = true)
     @Mapping(target = "createdBy", ignore = true)
     @Mapping(target = "updatedBy", ignore = true)
+
     void updateEntity(JobPostingRequest request, @MappingTarget JobPosting jobPosting);
 
     @Named("stringToStatus")
     default JobPostingStatus stringToStatus(String status) {
-        if (status == null) return JobPostingStatus.OPEN;
+        if (status == null)
+            return JobPostingStatus.OPEN;
         try {
             return JobPostingStatus.valueOf(status.toUpperCase());
         } catch (IllegalArgumentException e) {
