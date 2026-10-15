@@ -7,5 +7,6 @@ public record JobPostingSkillResponse(
     String name, 
     RequirementType type, 
     SkillLevel minLevel,
-    String description
+    String description,
+    Integer importanceWeight
 ) {}
