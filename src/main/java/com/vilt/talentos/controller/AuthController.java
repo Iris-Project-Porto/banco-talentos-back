@@ -9,6 +9,7 @@ import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -65,6 +66,14 @@ public class AuthController {
     public ApiResponse<?> forgotPassword(@RequestBody @Valid ForgotPasswordRequest req) {
         authService.forgotPassword(req.email());
         return ApiResponse.success("Um link de redefinição foi enviado para o seu e-mail.");
+    }
+
+    @PostMapping("/first-password-reset")
+    @Operation(summary = "Gerar link de primeira senha", description = "Gera um link de redefinição para o usuário autenticado que precisa trocar a senha provisória.")
+    public ApiResponse<String> generateFirstPasswordReset(Authentication authentication) {
+        String resetUrl = authService.generateTokenForFirstPasswordReset(
+                java.util.UUID.fromString(authentication.getName()));
+        return ApiResponse.success("Link de redefinição gerado.", resetUrl);
     }
 
     @GetMapping("/validate-reset-token")

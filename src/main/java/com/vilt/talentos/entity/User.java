@@ -55,6 +55,10 @@ public class User extends BaseAuditableEntity {
     @Column(name = "email_verified")
     private boolean emailVerified = false;
 
+    @Builder.Default
+    @Column(name = "must_change_password", nullable = false)
+    private boolean mustChangePassword = false;
+
     @Column(name = "reset_token")
     private String resetToken;
 
