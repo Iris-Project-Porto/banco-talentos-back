@@ -22,9 +22,6 @@ public record JobPostingCandidateMatchResponse(
     @Schema(description = "Nome da squad atual", example = "Squad Pagamentos")
     String squadName,
 
-    @Schema(description = "Disponibilidade do recurso (compatibilidade exata com o front: available, waiting, allocated)", example = "available")
-    String avaiability,
-
     @Schema(description = "Disponibilidade do recurso", example = "available")
     String availability,
 

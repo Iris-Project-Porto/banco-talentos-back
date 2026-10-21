@@ -353,7 +353,6 @@ public class JobPostingService {
                     profile.getPhotoUrl(),
                     squadName,
                     avail,
-                    avail,
                     matchScore,
                     0,
                     topSkills,
@@ -384,7 +383,6 @@ public class JobPostingService {
                     c.description(),
                     c.photoUrl(),
                     c.squadName(),
-                    c.avaiability(),
                     c.availability(),
                     c.matchScore(),
                     i + 1,
@@ -395,8 +393,7 @@ public class JobPostingService {
         var stream = ranked.stream();
         if (availability != null && !availability.isBlank()) {
             String availFilter = availability.trim().toLowerCase();
-            stream = stream.filter(c -> (c.availability() != null && c.availability().equalsIgnoreCase(availFilter))
-                    || (c.avaiability() != null && c.avaiability().equalsIgnoreCase(availFilter)));
+            stream = stream.filter(c -> c.availability() != null && c.availability().equalsIgnoreCase(availFilter));
         }
         if (search != null && !search.isBlank()) {
             String s = search.trim().toLowerCase();

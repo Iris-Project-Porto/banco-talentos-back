@@ -148,7 +148,6 @@ class JobPostingServiceTest {
         assertThat(first.rankingScore()).isEqualTo(1);
         assertThat(first.matchScore()).isEqualTo(100);
         assertThat(first.squadName()).isEqualTo("Squad Pagamentos");
-        assertThat(first.avaiability()).isEqualTo("available");
         assertThat(first.availability()).isEqualTo("available");
         assertThat(first.summary().requiredSkillsMatched()).isEqualTo(2);
         assertThat(first.summary().requiredSkillsTotal()).isEqualTo(2);
