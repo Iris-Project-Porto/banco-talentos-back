@@ -113,9 +113,9 @@ class JobPostingServiceTest {
                 .allocationSquad(squad)
                 .resourceStatus(ResourceStatus.AVAILABLE)
                 .skills(List.of(
-                        ProfileSkill.builder().skill(reactSkill).proficiencyLevel(4).build(),
-                        ProfileSkill.builder().skill(typeScriptSkill).proficiencyLevel(4).build(),
-                        ProfileSkill.builder().skill(tailwindSkill).proficiencyLevel(2).build()
+                        ProfileSkill.builder().skill(reactSkill).proficiencyLevel(6).build(),
+                        ProfileSkill.builder().skill(typeScriptSkill).proficiencyLevel(6).build(),
+                        ProfileSkill.builder().skill(tailwindSkill).proficiencyLevel(3).build()
                 ))
                 .status(DomainStatus.ACTIVE)
                 .build();
@@ -170,8 +170,8 @@ class JobPostingServiceTest {
                 .user(user1)
                 .jobTitle("Engenheiro Pleno")
                 .skills(List.of(
-                        ProfileSkill.builder().skill(reactSkill).proficiencyLevel(4).build(),
-                        ProfileSkill.builder().skill(typeScriptSkill).proficiencyLevel(4).build()
+                        ProfileSkill.builder().skill(reactSkill).proficiencyLevel(6).build(),
+                        ProfileSkill.builder().skill(typeScriptSkill).proficiencyLevel(6).build()
                 ))
                 .status(DomainStatus.ACTIVE)
                 .build();
@@ -207,5 +207,42 @@ class JobPostingServiceTest {
         assertThatThrownBy(() -> jobPostingService.findCandidatesForJobPosting(jobPostingId, null, null, null, PageRequest.of(0, 10)))
                 .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining("Vaga não encontrada");
+    }
+
+    @Test
+    @DisplayName("Deve calcular match com SkillLevel SPECIALIST e ADVANCED corretamente")
+    void shouldCalculateMatchWithSpecialistAndAdvanced() {
+        JobPostingSkill reqSpecialist = JobPostingSkill.builder()
+                .id(UUID.randomUUID())
+                .skill(reactSkill)
+                .type(RequirementType.MANDATORY)
+                .importanceWeight(1)
+                .minLevel(SkillLevel.SPECIALIST)
+                .build();
+
+        UUID specJobId = UUID.randomUUID();
+        JobPosting specialistJob = JobPosting.builder()
+                .id(specJobId)
+                .title("Tech Lead React")
+                .skills(List.of(reqSpecialist))
+                .build();
+
+        User user1 = User.builder().id(UUID.randomUUID()).name("Especialista User").status(DomainStatus.ACTIVE).build();
+        Profile profSpecialist = Profile.builder()
+                .id(UUID.randomUUID())
+                .user(user1)
+                .skills(List.of(ProfileSkill.builder().skill(reactSkill).proficiencyLevel(10).build()))
+                .status(DomainStatus.ACTIVE)
+                .build();
+
+        when(jobPostingRepo.findById(specJobId)).thenReturn(Optional.of(specialistJob));
+        when(profileRepo.findByStatus(DomainStatus.ACTIVE)).thenReturn(List.of(profSpecialist));
+
+        Page<JobPostingCandidateMatchResponse> result = jobPostingService.findCandidatesForJobPosting(
+                specJobId, null, null, null, PageRequest.of(0, 10)
+        );
+
+        assertThat(result.getContent()).hasSize(1);
+        assertThat(result.getContent().get(0).matchScore()).isEqualTo(100);
     }
 }

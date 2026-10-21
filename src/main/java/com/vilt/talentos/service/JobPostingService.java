@@ -288,17 +288,19 @@ public class JobPostingService {
 
                 if (candidateSkills.containsKey(skillNameUpper)) {
                     int candidateProf = candidateSkills.get(skillNameUpper);
-                    int targetProf = switch (jps.getMinLevel()) {
-                        case BASIC -> 1;
-                        case INTERMEDIATE -> 3;
-                        case ADVANCED -> 4;
+                    SkillLevel level = jps.getMinLevel() != null ? jps.getMinLevel() : SkillLevel.BASIC;
+                    int targetProf = switch (level) {
+                        case BASIC -> 3;
+                        case INTERMEDIATE -> 6;
+                        case ADVANCED -> 8;
+                        case SPECIALIST -> 10;
                     };
 
                     double skillEarned;
                     if (candidateProf >= targetProf) {
                         skillEarned = maxSkillWeight;
                     } else {
-                        skillEarned = maxSkillWeight * Math.max(0.4, (double) candidateProf / targetProf);
+                        skillEarned = maxSkillWeight * Math.max(0.10, (double) candidateProf / targetProf);
                     }
 
                     earnedWeight += skillEarned;
