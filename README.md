@@ -247,6 +247,7 @@ http://localhost:8080/swagger-ui/index.html
 | POST | `/api/auth/verify` | Verificação de e-mail |
 | POST | `/api/auth/login` | Autenticação e geração de JWT |
 | POST | `/api/auth/forgot-password` | Solicita recuperação de senha |
+| POST | `/api/v1/auth/first-password-reset` | Gera link de redefinição para o usuário autenticado que precisa trocar a senha provisória |
 | POST | `/api/auth/reset-password` | Redefine a senha |
 
 ---
