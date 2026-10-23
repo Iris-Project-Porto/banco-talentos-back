@@ -10,6 +10,8 @@ import com.vilt.talentos.exception.ResourceNotFoundException;
 import com.vilt.talentos.exception.UnauthorizedException;
 import com.vilt.talentos.mapper.ProjectMapper;
 import com.vilt.talentos.mapper.SquadMapper;
+import com.vilt.talentos.repository.JobPostingRepository;
+import com.vilt.talentos.repository.ProfileRepository;
 import com.vilt.talentos.repository.ProjectRepository;
 import com.vilt.talentos.repository.SquadRepository;
 import com.vilt.talentos.repository.UserRepository;
@@ -30,6 +32,8 @@ import java.util.UUID;
 public class ProjectService {
 
     private final ProjectRepository projectRepo;
+    private final JobPostingRepository jobPostingRepo;
+    private final ProfileRepository profileRepo;
     private final UserRepository userRepo;
     private final SquadRepository squadRepo;
     private final ProjectMapper mapper;
@@ -126,7 +130,6 @@ public class ProjectService {
                 .orElseThrow();
     }
 
-
     public void setActiveStatus(UUID id, boolean active) {
         log.info("Alterando status do projeto ID: {} para ativo={}", id, active);
 
@@ -169,7 +172,8 @@ public class ProjectService {
                         });
 
                 if (squad.getProject() != null && !squad.getProject().getId().equals(project.getId())) {
-                    log.warn("Squad ID '{}' já está vinculada ao projeto ID '{}'.", squadId, squad.getProject().getId());
+                    log.warn("Squad ID '{}' já está vinculada ao projeto ID '{}'.", squadId,
+                            squad.getProject().getId());
                     throw new ConflictException("A squad já está vinculada a outro projeto: " + squadId);
                 }
 
@@ -185,8 +189,22 @@ public class ProjectService {
         String userIdStr = SecurityContextHolder.getContext().getAuthentication().getName();
         return userRepo.findById(UUID.fromString(userIdStr))
                 .orElseThrow(() -> {
-                    log.error("Falha de segurança: Token válido, mas usuário ID: {} não encontrado no banco de dados.", userIdStr);
+                    log.error("Falha de segurança: Token válido, mas usuário ID: {} não encontrado no banco de dados.",
+                            userIdStr);
                     return new UnauthorizedException("Usuário não autenticado");
                 });
+    }
+
+    @Transactional
+    public void deleteProject(UUID id) {
+        Project project = projectRepo.findById(id)
+                .orElseThrow(() -> {
+                    log.warn("Falha ao deletar: Projeto ID '{}' não encontrado.", id);
+                    return new ResourceNotFoundException("Projeto não encontrado");
+                });
+        jobPostingRepo.clearProject(id);
+        profileRepo.clearAllocationProject(id);
+        squadRepo.clearProject(id);
+        projectRepo.delete(project);
     }
 }
