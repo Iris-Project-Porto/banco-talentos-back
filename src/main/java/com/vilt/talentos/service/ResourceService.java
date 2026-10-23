@@ -5,8 +5,10 @@ import com.vilt.talentos.dto.CreateResourceRequest;
 import com.vilt.talentos.dto.CreateResourceResponse;
 import com.vilt.talentos.entity.*;
 import com.vilt.talentos.exception.BadRequestException;
+import com.vilt.talentos.exception.ResourceNotFoundException;
 import com.vilt.talentos.repository.GroupRepository;
 import com.vilt.talentos.repository.ProfileRepository;
+import com.vilt.talentos.repository.UserReferenceCleanupRepository;
 import com.vilt.talentos.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,6 +20,7 @@ import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -33,6 +36,7 @@ public class ResourceService {
     private final UserRepository userRepo;
     private final ProfileRepository profileRepo;
     private final GroupRepository groupRepo;
+    private final UserReferenceCleanupRepository userReferenceCleanupRepo;
     private final PasswordEncoder passwordEncoder;
     private final EmailService emailService;
     private final AppProperties appProperties;
@@ -81,15 +85,15 @@ public class ResourceService {
                 .build();
         profileRepo.save(profile);
 
-        log.info("Recurso cadastrado com sucesso. Usuário ID: {}, Perfil ID: {}. Enviando credenciais provisórias.", user.getId(), profile.getId());
+        log.info("Recurso cadastrado com sucesso. Usuário ID: {}, Perfil ID: {}. Enviando credenciais provisórias.",
+                user.getId(), profile.getId());
 
         emailService.sendResourceWelcomeEmail(
                 user.getEmail(),
                 user.getName(),
                 user.getEmail(),
                 provisionalPassword,
-                appProperties.getUrl() + "/login"
-        );
+                appProperties.getUrl() + "/login");
 
         return new CreateResourceResponse(profile.getId(), user.getId(), user.getName(), user.getEmail());
     }
@@ -144,5 +148,24 @@ public class ResourceService {
 
     private char randomChar(String source) {
         return source.charAt(RANDOM.nextInt(source.length()));
+    }
+
+    @Transactional
+    public void deleteById(UUID id) {
+        // Remove referências dependentes antes de excluir o perfil e a conta do recurso.
+        Profile profile = profileRepo.findById(id)
+                .orElseGet(() -> userRepo.findById(id)
+                        .filter(user -> user.getRole() == UserRole.RESOURCE)
+                        .flatMap(user -> profileRepo.findByUserId(user.getId()))
+                        .orElseThrow(() -> new ResourceNotFoundException("Recurso não encontrado.")));
+
+        User user = profile.getUser();
+        if (user == null || user.getRole() != UserRole.RESOURCE) {
+            throw new ResourceNotFoundException("Recurso não encontrado.");
+        }
+
+        userReferenceCleanupRepo.deleteReferences(user.getId());
+        profileRepo.delete(profile);
+        userRepo.delete(user);
     }
 }
