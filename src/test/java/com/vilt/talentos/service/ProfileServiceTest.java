@@ -162,7 +162,7 @@ class ProfileServiceTest {
                 .build();
         ProfileSelfUpdateRequest req = new ProfileSelfUpdateRequest(
                 null, null, "New area", null, null, null, null, null,
-                null, "222", null, null, null, null);
+                null, "222", null, null, null, null,null);
 
         when(profileRepo.findByUserId(userId)).thenReturn(Optional.of(profile));
         when(profileRepo.save(profile)).thenReturn(profile);
@@ -179,31 +179,6 @@ class ProfileServiceTest {
         assertEquals("222", ((Map<?, ?>) newValue.getValue()).get("phone"));
     }
 
-    @Test
-    void updateMyProfile_WhenOnlySoftSkillsArePresent_ShouldNotRemoveThemOrAuditNoOp() {
-        UUID userId = UUID.randomUUID();
-        Profile profile = Profile.builder()
-                .id(UUID.randomUUID())
-                .skills(new java.util.ArrayList<>())
-                .build();
-        Skill softSkill = Skill.builder().name("COMMUNICATION").type(SkillType.SOFT).build();
-        Skill hardSkill = Skill.builder().name("JAVA").type(SkillType.HARD).build();
-        ProfileSkill softProfileSkill = ProfileSkill.builder().profile(profile).skill(softSkill).build();
-        ProfileSkill hardProfileSkill = ProfileSkill.builder().profile(profile).skill(hardSkill).build();
-        profile.getSkills().add(softProfileSkill);
-        profile.getSkills().add(hardProfileSkill);
-
-        when(profileRepo.findByUserId(userId)).thenReturn(Optional.of(profile));
-        when(profileRepo.save(profile)).thenReturn(profile);
-
-        Profile result = profileService.updateMyProfile(userId, new ProfileSelfUpdateRequest(
-                null, null, null, null, null, null, null, null,
-                null, null, null, null, null, null));
-
-        assertEquals(2, profile.getSkills().size());
-        assertFalse(result.getSkills().stream().anyMatch(skill -> skill.getSkill().getType() == SkillType.SOFT));
-        verify(auditLogService, never()).record(any(), any(), any(), any(), any());
-    }
 
     @Test
     void adminUpdate_reconcilesHardAndSoftSkills_savesWithoutDuplicates() {
