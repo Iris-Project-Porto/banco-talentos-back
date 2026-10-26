@@ -69,4 +69,10 @@ public class AdminProjectController {
     public void inactivate(@PathVariable UUID id) {
         projectService.setActiveStatus(id, false);
     }
+    @DeleteMapping("cleaning_delete/{id}")
+    @ResponseStatus (HttpStatus.NO_CONTENT)
+    @Operation (summary = "Excluir projeto")
+    public void delete(@PathVariable UUID id) {
+        projectService.deleteProject(id);
+    }
 }

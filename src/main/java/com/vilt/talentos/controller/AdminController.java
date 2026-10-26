@@ -137,4 +137,11 @@ public class AdminController {
     public void rejectUser(@PathVariable UUID id) {
         adminService.rejectUser(id);
     }
+
+    @DeleteMapping("cleaning_delete/{id}")
+    @ResponseStatus(HttpStatus.OK)
+    @Operation(summary = "Excluir recurso", description = "Remove permanentemente o recurso, seu perfil e sua conta de acesso. O id pode ser o UUID do perfil ou do usuário.")
+    public void deleteResource(@PathVariable UUID id) {
+        resourceService.deleteById(id);
+    }
 }

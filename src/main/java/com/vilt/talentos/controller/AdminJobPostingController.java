@@ -69,4 +69,11 @@ public class AdminJobPostingController {
     public void deactivate(@PathVariable UUID id) {
         jobPostingService.setActiveStatus(id, false);;
     }
+
+    @DeleteMapping("cleaning_delete/{id}")
+    @ResponseStatus(HttpStatus.OK)
+    @Operation(summary = "Excluir vaga")
+    public void delete(@PathVariable UUID id) {
+        jobPostingService.deleteJobPosting(id);
+    }
 }
