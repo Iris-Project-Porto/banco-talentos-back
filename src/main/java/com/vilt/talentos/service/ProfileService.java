@@ -61,6 +61,7 @@ public class ProfileService {
         profile.setStatus(DomainStatus.PENDING);
 
         profileMapper.updateEntity(req, profile);
+        if (req.photoUrl() != null) profile.setPhotoUrl(sanitizePhotoUrl(req.photoUrl()));
 
         // Matrícula é preenchida apenas pelo admin
         profile.setLevel(evaluation.nivel().name());
@@ -97,7 +98,7 @@ public class ProfileService {
                     return new ResourceNotFoundException("Perfil não encontrado para o usuário");
                 });
 
-        if (req.photoUrl() != null) profile.setPhotoUrl(blankToNull(req.photoUrl()));
+        if (req.photoUrl() != null) profile.setPhotoUrl(sanitizePhotoUrl(req.photoUrl()));
         if (req.jobTitle() != null) profile.setJobTitle(blankToNull(req.jobTitle()));
         if (req.area() != null) profile.setArea(blankToNull(req.area()));
         if (req.about() != null) profile.setAbout(blankToNull(req.about()));
@@ -118,6 +119,20 @@ public class ProfileService {
         Profile saved = profileRepo.save(profile);
         log.info("Perfil ID: {} atualizado pelo recurso com sucesso.", saved.getId());
         return saved;
+    }
+
+    public boolean isValidPhotoUrl(String photoUrl) {
+        if (photoUrl == null) {
+            return false;
+        }
+        String trimmed = photoUrl.trim();
+        return !trimmed.isEmpty()
+                && !trimmed.equalsIgnoreCase("null")
+                && !trimmed.equalsIgnoreCase("undefined");
+    }
+
+    public String sanitizePhotoUrl(String photoUrl) {
+        return isValidPhotoUrl(photoUrl) ? photoUrl.trim() : null;
     }
 
     private String blankToNull(String value) {
