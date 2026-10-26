@@ -20,8 +20,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -40,6 +43,7 @@ public class ProfileService {
     private final EmailService emailService;
     private final AppProperties appProperties;
     private final ProfileMapper profileMapper;
+    private final AuditLogService auditLogService;
 
     @Transactional
     public Profile createOrUpdate(UUID userId, ProfileRequest req) {
@@ -53,8 +57,11 @@ public class ProfileService {
 
         var evaluation = evaluationService.evaluate(req);
 
-        var profile = profileRepo.findByUserId(userId).orElseGet(() -> Profile.builder()
+        var existingProfile = profileRepo.findByUserId(userId);
+        boolean isNewProfile = existingProfile.isEmpty();
+        var profile = existingProfile.orElseGet(() -> Profile.builder()
                 .user(user).status(DomainStatus.PENDING).build());
+        Map<String, Object> oldValue = isNewProfile ? null : profileAuditSnapshot(profile);
 
         // Toda submissão pelo recurso deve passar por revisão (status PENDENTE)
         boolean wasActive = DomainStatus.ACTIVE == profile.getStatus();
@@ -72,8 +79,15 @@ public class ProfileService {
         Profile saved = profileRepo.save(profile);
         log.info("Perfil salvo e alterado para PENDING. ID do Perfil: {}", saved.getId());
 
+        Map<String, Object> newValue = profileAuditSnapshot(saved);
+        if (isNewProfile) {
+            auditLogService.record(AuditOperation.CREATE, "PROFILE", saved.getId(), null, newValue);
+        } else if (!Objects.equals(oldValue, newValue)) {
+            auditLogService.record(AuditOperation.UPDATE, "PROFILE", saved.getId(), oldValue, newValue);
+        }
+
         // Notificar admins se o perfil foi submetido (se estava ATIVO ou se é novo)
-        if (wasActive || profileRepo.findByUserId(userId).isEmpty()) {
+        if (wasActive || isNewProfile) {
             List<String> adminEmails = userRepo.findAllByRoleAndStatus(UserRole.ADMIN, DomainStatus.ACTIVE, Pageable.unpaged())
                     .getContent().stream().map(User::getEmail).toList();
             if (!adminEmails.isEmpty()) {
@@ -86,6 +100,59 @@ public class ProfileService {
 
         return saved;
     }
+
+    private Map<String, Object> profileAuditSnapshot(Profile profile) {
+        Map<String, Object> snapshot = new LinkedHashMap<>();
+        snapshot.put("photoUrl", profile.getPhotoUrl());
+        snapshot.put("cpf", profile.getCpf());
+        snapshot.put("jobTitle", profile.getJobTitle());
+        snapshot.put("contact", profile.getContact());
+        snapshot.put("contactEmail", profile.getContactEmail());
+        snapshot.put("phone", profile.getPhone());
+        snapshot.put("address", profile.getAddress());
+        snapshot.put("postalCode", profile.getPostalCode());
+        snapshot.put("cityState", profile.getCityState());
+        snapshot.put("area", profile.getArea());
+        snapshot.put("about", profile.getAbout());
+        snapshot.put("stackReadiness", profile.getStackReadiness());
+        snapshot.put("allocationStatus", profile.getAllocationStatus());
+        snapshot.put("mentorshipLevel", profile.getMentorshipLevel());
+        snapshot.put("autonomy", profile.getAutonomy());
+        snapshot.put("careerPath", profile.getCareerPath());
+        snapshot.put("certificationsCount", profile.getCertificationsCount());
+        snapshot.put("monitoringLevel", profile.getMonitoringLevel());
+        snapshot.put("level", profile.getLevel());
+        snapshot.put("levelScore", profile.getLevelScore());
+        snapshot.put("levelJustification", profile.getLevelJustification());
+        snapshot.put("experienceYears", profile.getExperienceYears());
+        snapshot.put("projectsCount", profile.getProjectsCount());
+        snapshot.put("availability", profile.getAvailability());
+        snapshot.put("certifications", profile.getCertifications());
+        snapshot.put("linkedinUrl", profile.getLinkedinUrl());
+        snapshot.put("githubUrl", profile.getGithubUrl());
+        snapshot.put("codeReviewRole", profile.getCodeReviewRole());
+        snapshot.put("status", profile.getStatus());
+        snapshot.put("skills", profile.getSkills().stream()
+                .sorted(Comparator
+                        .comparing((ProfileSkill skill) -> skill.getSkill().getName(), String.CASE_INSENSITIVE_ORDER)
+                        .thenComparing(ProfileSkill::getId, Comparator.nullsLast(Comparator.naturalOrder())))
+                .map(skill -> new ProfileSkillAuditSnapshot(
+                        skill.getId(),
+                        skill.getSkill().getId(),
+                        skill.getSkill().getName(),
+                        skill.getSkill().getType(),
+                        skill.getProficiencyLevel()))
+                .toList());
+        return snapshot;
+    }
+
+    private record ProfileSkillAuditSnapshot(
+            UUID id,
+            UUID skillId,
+            String name,
+            SkillType type,
+            Integer proficiencyLevel
+    ) {}
 
     @Transactional
     public Profile updateMyProfile(UUID userId, ProfileSelfUpdateRequest req) {
