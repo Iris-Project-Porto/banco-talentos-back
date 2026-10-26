@@ -163,6 +163,7 @@ public class ProfileService {
                     log.warn("Atualização falhou: Perfil não encontrado para o usuário ID: {}", userId);
                     return new ResourceNotFoundException("Perfil não encontrado para o usuário");
                 });
+        Map<String, Object> oldValue = profileAuditSnapshot(profile);
 
         if (req.photoUrl() != null) profile.setPhotoUrl(blankToNull(req.photoUrl()));
         if (req.jobTitle() != null) profile.setJobTitle(blankToNull(req.jobTitle()));
@@ -183,6 +184,10 @@ public class ProfileService {
         }
 
         Profile saved = profileRepo.save(profile);
+        Map<String, Object> newValue = profileAuditSnapshot(saved);
+        if (!Objects.equals(oldValue, newValue)) {
+            auditLogService.record(AuditOperation.UPDATE, "PROFILE", saved.getId(), oldValue, newValue);
+        }
         log.info("Perfil ID: {} atualizado pelo recurso com sucesso.", saved.getId());
         return sanitizeProfileForResource(saved);
     }
