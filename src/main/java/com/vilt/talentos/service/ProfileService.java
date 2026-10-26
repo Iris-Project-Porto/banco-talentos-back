@@ -298,7 +298,7 @@ public class ProfileService {
                     log.warn("Falha na atualização do perfil: Perfil ID: {} não encontrado.", profileId);
                     return new ResourceNotFoundException("Perfil não encontrado");
                 });
-        
+        Map<String, Object> oldValue = profileAuditSnapshot(profile);
         DomainStatus oldStatus = profile.getStatus();
         boolean wasAllocatedToProject = profile.getAllocationProject() != null;
         
@@ -382,6 +382,10 @@ public class ProfileService {
         }
 
         Profile saved = profileRepo.save(profile);
+        Map<String, Object> newValue = profileAuditSnapshot(saved);
+        if (!Objects.equals(oldValue, newValue)) {
+            auditLogService.record(AuditOperation.UPDATE, "PROFILE", saved.getId(), oldValue, newValue);
+        }
         log.info("Perfil ID: {} atualizado administrativamente com sucesso.", profileId);
 
         // Se o status mudou para ATIVO, notifica o colaborador
