@@ -4,6 +4,7 @@ import com.vilt.talentos.config.AppProperties;
 import com.vilt.talentos.dto.AdminUpdateRequest;
 import com.vilt.talentos.dto.AdminUpdateRequestFixtures;
 import com.vilt.talentos.dto.ProfileRequest;
+import com.vilt.talentos.dto.ProfileSelfUpdateRequest;
 import com.vilt.talentos.dto.SkillEntry;
 import com.vilt.talentos.entity.DomainStatus;
 import com.vilt.talentos.entity.ExperienceLevel;
@@ -15,6 +16,7 @@ import com.vilt.talentos.entity.ResourceStatus;
 import com.vilt.talentos.entity.Skill;
 import com.vilt.talentos.entity.SkillType;
 import com.vilt.talentos.entity.User;
+import com.vilt.talentos.entity.AuditOperation;
 import com.vilt.talentos.mapper.ProfileMapper;
 import com.vilt.talentos.repository.GroupRepository;
 import com.vilt.talentos.repository.ProfileRepository;
@@ -30,10 +32,14 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.Optional;
 import java.util.UUID;
+import java.util.Map;
+import org.mockito.ArgumentCaptor;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class ProfileServiceTest {
@@ -46,6 +52,8 @@ class ProfileServiceTest {
     private TalentEvaluationService evaluationService;
     @Mock
     private ProfileMapper profileMapper;
+    @Mock
+    private AuditLogService auditLogService;
     @Mock
     private EmailService emailService;
     @Mock
@@ -65,8 +73,9 @@ class ProfileServiceTest {
     @Test
     void createOrUpdate_WhenProfileIsActive_ShouldBecomePending() {
         UUID userId = UUID.randomUUID();
+        UUID profileId = UUID.randomUUID();
         User user = User.builder().id(userId).email("test@vilt-group.com").build();
-        Profile profile = Profile.builder().user(user).status(DomainStatus.ACTIVE).build();
+        Profile profile = Profile.builder().id(profileId).user(user).area("Old area").status(DomainStatus.ACTIVE).build();
         ProfileRequest req = new ProfileRequest(
                 null, "Dev", "IT",
                 null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null,
@@ -79,10 +88,120 @@ class ProfileServiceTest {
         when(userRepo.findAllByRoleAndStatus(any(), any(), any())).thenReturn(org.springframework.data.domain.Page.empty());
         when(evaluationService.evaluate(any())).thenReturn(new TalentEvaluationService.Evaluation(ExperienceLevel.PLENO, 50, "Justification"));
         when(profileRepo.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        doAnswer(invocation -> {
+            ProfileRequest request = invocation.getArgument(0);
+            Profile target = invocation.getArgument(1);
+            target.setArea(request.area());
+            target.setJobTitle(request.jobTitle());
+            return null;
+        }).when(profileMapper).updateEntity(any(), any());
 
         Profile result = profileService.createOrUpdate(userId, req);
 
         assertEquals(DomainStatus.PENDING, result.getStatus(), "Profile status should be PENDING after update by resource");
+        ArgumentCaptor<Object> oldValue = ArgumentCaptor.forClass(Object.class);
+        ArgumentCaptor<Object> newValue = ArgumentCaptor.forClass(Object.class);
+        verify(auditLogService).record(
+                eq(AuditOperation.UPDATE), eq("PROFILE"), eq(profileId), oldValue.capture(), newValue.capture());
+        assertEquals("Old area", ((Map<?, ?>) oldValue.getValue()).get("area"));
+        assertEquals(DomainStatus.ACTIVE, ((Map<?, ?>) oldValue.getValue()).get("status"));
+        assertEquals("IT", ((Map<?, ?>) newValue.getValue()).get("area"));
+        assertEquals(DomainStatus.PENDING, ((Map<?, ?>) newValue.getValue()).get("status"));
+    }
+
+    @Test
+    void createOrUpdate_WhenProfileDoesNotExist_ShouldAuditCreation() {
+        UUID userId = UUID.randomUUID();
+        UUID profileId = UUID.randomUUID();
+        User user = User.builder().id(userId).email("test@vilt-group.com").build();
+        ProfileRequest req = new ProfileRequest(
+                null, "Dev", "IT",
+                null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null,
+                null
+        );
+
+        when(userRepo.findById(userId)).thenReturn(Optional.of(user));
+        when(profileRepo.findByUserId(userId)).thenReturn(Optional.empty());
+        when(userRepo.findAllByRoleAndStatus(any(), any(), any())).thenReturn(org.springframework.data.domain.Page.empty());
+        when(evaluationService.evaluate(any())).thenReturn(
+                new TalentEvaluationService.Evaluation(ExperienceLevel.PLENO, 50, "Justification"));
+        doAnswer(invocation -> {
+            ProfileRequest request = invocation.getArgument(0);
+            Profile target = invocation.getArgument(1);
+            target.setArea(request.area());
+            target.setJobTitle(request.jobTitle());
+            return null;
+        }).when(profileMapper).updateEntity(any(), any());
+        when(profileRepo.save(any())).thenAnswer(invocation -> {
+            Profile saved = invocation.getArgument(0);
+            saved.setId(profileId);
+            return saved;
+        });
+
+        Profile result = profileService.createOrUpdate(userId, req);
+
+        assertEquals(profileId, result.getId());
+        ArgumentCaptor<Object> newValue = ArgumentCaptor.forClass(Object.class);
+        verify(auditLogService).record(
+                eq(AuditOperation.CREATE), eq("PROFILE"), eq(profileId), isNull(), newValue.capture());
+        assertEquals("IT", ((Map<?, ?>) newValue.getValue()).get("area"));
+        assertEquals(ExperienceLevel.PLENO.name(), ((Map<?, ?>) newValue.getValue()).get("level"));
+    }
+
+    @Test
+    void updateMyProfile_WhenFieldsChange_ShouldAuditOldAndNewValues() {
+        UUID userId = UUID.randomUUID();
+        UUID profileId = UUID.randomUUID();
+        Profile profile = Profile.builder()
+                .id(profileId)
+                .area("Old area")
+                .phone("111")
+                .skills(new java.util.ArrayList<>())
+                .build();
+        ProfileSelfUpdateRequest req = new ProfileSelfUpdateRequest(
+                null, null, "New area", null, null, null, null, null,
+                null, "222", null, null, null, null);
+
+        when(profileRepo.findByUserId(userId)).thenReturn(Optional.of(profile));
+        when(profileRepo.save(profile)).thenReturn(profile);
+
+        profileService.updateMyProfile(userId, req);
+
+        ArgumentCaptor<Object> oldValue = ArgumentCaptor.forClass(Object.class);
+        ArgumentCaptor<Object> newValue = ArgumentCaptor.forClass(Object.class);
+        verify(auditLogService).record(
+                eq(AuditOperation.UPDATE), eq("PROFILE"), eq(profileId), oldValue.capture(), newValue.capture());
+        assertEquals("Old area", ((Map<?, ?>) oldValue.getValue()).get("area"));
+        assertEquals("111", ((Map<?, ?>) oldValue.getValue()).get("phone"));
+        assertEquals("New area", ((Map<?, ?>) newValue.getValue()).get("area"));
+        assertEquals("222", ((Map<?, ?>) newValue.getValue()).get("phone"));
+    }
+
+    @Test
+    void updateMyProfile_WhenOnlySoftSkillsArePresent_ShouldNotRemoveThemOrAuditNoOp() {
+        UUID userId = UUID.randomUUID();
+        Profile profile = Profile.builder()
+                .id(UUID.randomUUID())
+                .skills(new java.util.ArrayList<>())
+                .build();
+        Skill softSkill = Skill.builder().name("COMMUNICATION").type(SkillType.SOFT).build();
+        Skill hardSkill = Skill.builder().name("JAVA").type(SkillType.HARD).build();
+        ProfileSkill softProfileSkill = ProfileSkill.builder().profile(profile).skill(softSkill).build();
+        ProfileSkill hardProfileSkill = ProfileSkill.builder().profile(profile).skill(hardSkill).build();
+        profile.getSkills().add(softProfileSkill);
+        profile.getSkills().add(hardProfileSkill);
+
+        when(profileRepo.findByUserId(userId)).thenReturn(Optional.of(profile));
+        when(profileRepo.save(profile)).thenReturn(profile);
+
+        Profile result = profileService.updateMyProfile(userId, new ProfileSelfUpdateRequest(
+                null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null));
+
+        assertEquals(2, profile.getSkills().size());
+        assertFalse(result.getSkills().stream().anyMatch(skill -> skill.getSkill().getType() == SkillType.SOFT));
+        verify(auditLogService, never()).record(any(), any(), any(), any(), any());
     }
 
     @Test
