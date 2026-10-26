@@ -112,13 +112,13 @@ public class ProfileService {
         if (req.postalCode() != null) profile.setPostalCode(normalizePostalCode(req.postalCode()));
         if (req.cityState() != null) profile.setCityState(blankToNull(req.cityState()));
 
-        if (req.skills() != null) {
-            reconcileSkills(profile, req.skills(), null);
+        if (req.skills() != null || req.softSkills() != null) {
+            reconcileSkills(profile, req.skills(), req.softSkills());
         }
 
         Profile saved = profileRepo.save(profile);
         log.info("Perfil ID: {} atualizado pelo recurso com sucesso.", saved.getId());
-        return sanitizeProfileForResource(saved);
+        return saved;
     }
 
     public boolean isValidPhotoUrl(String photoUrl) {
@@ -155,11 +155,6 @@ public class ProfileService {
                     return new ResourceNotFoundException("Perfil não encontrado para o usuário");
                 });
         
-        return sanitizeProfileForResource(profile);
-    }
-
-    private Profile sanitizeProfileForResource(Profile profile) {
-        profile.getSkills().removeIf(ps -> ps.getSkill().getType() == SkillType.SOFT);
         return profile;
     }
 
