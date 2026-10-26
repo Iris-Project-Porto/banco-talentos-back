@@ -98,8 +98,17 @@ public class SkillService {
                     .limit(5)
                     .map(ps -> {
                         Profile profile = ps.getProfile();
-                        AvatarType avatarType = profile.getPhotoUrl() != null ? AvatarType.PHOTO : AvatarType.INITIALS;
-                        String avatar = avatarType == AvatarType.PHOTO ? profile.getPhotoUrl() : profileService.getInitials(profile.getUser().getName());
+                        String photoUrl = profile.getPhotoUrl();
+                        boolean hasValidPhoto = isValidPhotoUrl(photoUrl);
+
+                        AvatarType avatarType = hasValidPhoto ? AvatarType.PHOTO : AvatarType.INITIALS;
+                        String userName = (profile.getUser() != null && profile.getUser().getName() != null)
+                                ? profile.getUser().getName()
+                                : "";
+                        String avatar = hasValidPhoto
+                                ? photoUrl.trim()
+                                : profileService.getInitials(userName);
+
                         return new AvatarResponse(
                                 avatarType,
                                 avatar
@@ -187,5 +196,15 @@ public class SkillService {
         skillRepo.save(skill);
 
         log.info("Status da skill ID: {} atualizado com sucesso.", id);
+    }
+
+    boolean isValidPhotoUrl(String photoUrl) {
+        if (photoUrl == null) {
+            return false;
+        }
+        String trimmed = photoUrl.trim();
+        return !trimmed.isEmpty()
+                && !trimmed.equalsIgnoreCase("null")
+                && !trimmed.equalsIgnoreCase("undefined");
     }
 }
