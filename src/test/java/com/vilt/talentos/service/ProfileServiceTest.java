@@ -37,6 +37,7 @@ import org.mockito.ArgumentCaptor;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
@@ -375,5 +376,38 @@ class ProfileServiceTest {
         assertEquals(null, result.getAllocationProject());
         assertEquals(RegistrationStatus.NOT_REQUIRED, result.getRegistrationStatus());
         assertEquals(ResourceStatus.AVAILABLE, result.getResourceStatus());
+    }
+
+    @Test
+    void isValidPhotoUrl_shouldValidateAccurately() {
+        assertFalse(profileService.isValidPhotoUrl(null));
+        assertFalse(profileService.isValidPhotoUrl(""));
+        assertFalse(profileService.isValidPhotoUrl("   "));
+        assertFalse(profileService.isValidPhotoUrl("null"));
+        assertFalse(profileService.isValidPhotoUrl("NULL"));
+        assertFalse(profileService.isValidPhotoUrl("undefined"));
+        assertFalse(profileService.isValidPhotoUrl("  undefined  "));
+        assertTrue(profileService.isValidPhotoUrl("https://example.com/avatar.jpg"));
+    }
+
+    @Test
+    void sanitizePhotoUrl_shouldReturnNullForInvalidUrls() {
+        assertEquals(null, profileService.sanitizePhotoUrl(null));
+        assertEquals(null, profileService.sanitizePhotoUrl(""));
+        assertEquals(null, profileService.sanitizePhotoUrl("   "));
+        assertEquals(null, profileService.sanitizePhotoUrl("null"));
+        assertEquals(null, profileService.sanitizePhotoUrl("undefined"));
+        assertEquals("https://example.com/photo.jpg", profileService.sanitizePhotoUrl("  https://example.com/photo.jpg  "));
+    }
+
+    @Test
+    void getInitials_shouldReturnCorrectInitials() {
+        assertEquals("", profileService.getInitials(null));
+        assertEquals("", profileService.getInitials(""));
+        assertEquals("", profileService.getInitials("   "));
+        assertEquals("D", profileService.getInitials("Diogo"));
+        assertEquals("DC", profileService.getInitials("Diogo Carrasco"));
+        assertEquals("DB", profileService.getInitials("Diogo Bessa"));
+        assertEquals("AS", profileService.getInitials("Aldilane Santos Silva"));
     }
 }

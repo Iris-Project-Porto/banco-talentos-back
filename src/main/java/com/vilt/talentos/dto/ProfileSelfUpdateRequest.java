@@ -17,6 +17,7 @@ public record ProfileSelfUpdateRequest(
         String address,
         String postalCode,
         String cityState,
-        List<SkillEntry> skills
+        List<SkillEntry> skills,
+        List<SkillEntry> softSkills
 ) {
 }

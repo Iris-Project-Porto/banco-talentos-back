@@ -68,6 +68,7 @@ public class ProfileService {
         profile.setStatus(DomainStatus.PENDING);
 
         profileMapper.updateEntity(req, profile);
+        if (req.photoUrl() != null) profile.setPhotoUrl(sanitizePhotoUrl(req.photoUrl()));
 
         // Matrícula é preenchida apenas pelo admin
         profile.setLevel(evaluation.nivel().name());
@@ -165,7 +166,7 @@ public class ProfileService {
                 });
         Map<String, Object> oldValue = profileAuditSnapshot(profile);
 
-        if (req.photoUrl() != null) profile.setPhotoUrl(blankToNull(req.photoUrl()));
+        if (req.photoUrl() != null) profile.setPhotoUrl(sanitizePhotoUrl(req.photoUrl()));
         if (req.jobTitle() != null) profile.setJobTitle(blankToNull(req.jobTitle()));
         if (req.area() != null) profile.setArea(blankToNull(req.area()));
         if (req.about() != null) profile.setAbout(blankToNull(req.about()));
@@ -179,8 +180,8 @@ public class ProfileService {
         if (req.postalCode() != null) profile.setPostalCode(normalizePostalCode(req.postalCode()));
         if (req.cityState() != null) profile.setCityState(blankToNull(req.cityState()));
 
-        if (req.skills() != null) {
-            reconcileSkills(profile, req.skills(), null);
+        if (req.skills() != null || req.softSkills() != null) {
+            reconcileSkills(profile, req.skills(), req.softSkills());
         }
 
         Profile saved = profileRepo.save(profile);
@@ -189,7 +190,21 @@ public class ProfileService {
             auditLogService.record(AuditOperation.UPDATE, "PROFILE", saved.getId(), oldValue, newValue);
         }
         log.info("Perfil ID: {} atualizado pelo recurso com sucesso.", saved.getId());
-        return sanitizeProfileForResource(saved);
+        return saved;
+    }
+
+    public boolean isValidPhotoUrl(String photoUrl) {
+        if (photoUrl == null) {
+            return false;
+        }
+        String trimmed = photoUrl.trim();
+        return !trimmed.isEmpty()
+                && !trimmed.equalsIgnoreCase("null")
+                && !trimmed.equalsIgnoreCase("undefined");
+    }
+
+    public String sanitizePhotoUrl(String photoUrl) {
+        return isValidPhotoUrl(photoUrl) ? photoUrl.trim() : null;
     }
 
     private String blankToNull(String value) {
@@ -212,11 +227,6 @@ public class ProfileService {
                     return new ResourceNotFoundException("Perfil não encontrado para o usuário");
                 });
         
-        return sanitizeProfileForResource(profile);
-    }
-
-    private Profile sanitizeProfileForResource(Profile profile) {
-        profile.getSkills().removeIf(ps -> ps.getSkill().getType() == SkillType.SOFT);
         return profile;
     }
 

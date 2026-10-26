@@ -7,6 +7,8 @@ import com.vilt.talentos.exception.ResourceNotFoundException;
 import com.vilt.talentos.exception.UnauthorizedException;
 import com.vilt.talentos.mapper.SquadMapper;
 import com.vilt.talentos.repository.*;
+
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -23,6 +25,8 @@ import java.util.UUID;
 public class SquadService {
 
     private final SquadRepository squadRepo;
+    private final ProfileRepository profileRepo;
+    private final JobPostingRepository jobPostingRepo;
     private final UserRepository userRepo;
     private final SquadMapper mapper;
 
@@ -135,8 +139,21 @@ public class SquadService {
         String userIdStr = SecurityContextHolder.getContext().getAuthentication().getName();
         return userRepo.findById(UUID.fromString(userIdStr))
                 .orElseThrow(() -> {
-                    log.error("Falha de segurança: Token válido, mas usuário ID: {} não encontrado no banco.", userIdStr);
+                    log.error("Falha de segurança: Token válido, mas usuário ID: {} não encontrado no banco.",
+                            userIdStr);
                     return new UnauthorizedException("Usuário não autenticado");
                 });
+    }
+
+    @Transactional
+    public void deleteSquad(UUID id) {
+        Squad squad = squadRepo.findById(id)
+                .orElseThrow(() -> {
+                    log.warn("Falha ao deletar: Squad ID '{}' não encontrada.", id);
+                    return new ResourceNotFoundException("Squad não encontrada");
+                });
+        profileRepo.clearAllocationSquad(id);
+        jobPostingRepo.clearSquad(id);
+        squadRepo.delete(squad);
     }
 }

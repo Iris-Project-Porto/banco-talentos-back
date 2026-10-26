@@ -87,7 +87,8 @@ public class AuthService {
                 user.getName(),
                 user.getEmail(),
                 user.getRole().name(),
-                profileRepo.existsByUserId(user.getId())
+                profileRepo.existsByUserId(user.getId()),
+                user.isMustChangePassword()
         );
     }
 
@@ -122,7 +123,8 @@ public class AuthService {
                 user.getName(),
                 user.getEmail(),
                 user.getRole().name(),
-                profileRepo.existsByUserId(user.getId())
+                profileRepo.existsByUserId(user.getId()),
+                user.isMustChangePassword()
         );
     }
 
@@ -167,6 +169,7 @@ public class AuthService {
         user.setEmail(email);
         user.setPassword(passwordEncoder.encode(request.password()));
         user.setStatus(request.role() == UserRole.ADMIN ? DomainStatus.PENDING : DomainStatus.ACTIVE);
+        user.setMustChangePassword(true);
         user.setVerificationCode(verificationCode);
         user.setVerificationCodeExpiresAt(Instant.now().plus(30, ChronoUnit.MINUTES));
         user.setEmailVerified(false);
@@ -265,13 +268,50 @@ public class AuthService {
 
         log.info("Token de recuperação gerado para '{}'. Disparando e-mail.", email);
 
-        String resetUrl = appProperties.getUrl() + "/reset-password?token=" + token + "&email=" + email;
+        String resetUrl = buildPasswordResetUrl(email, token);
         emailService.sendTemplatedEmail(
             List.of(user.getEmail()), 
             "Banco de Talentos - Redefinição de Senha", 
             "emails/password-reset", 
             Map.of("userName", user.getName(), "resetUrl", resetUrl)
         );
+    }
+
+    public String generateTokenForFirstPasswordReset(UUID userId) {
+        User user = userRepo.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado."));
+
+        return createFirstPasswordResetUrl(user);
+    }
+
+    private String createFirstPasswordResetUrl(User user) {
+        String email = user.getEmail();
+        log.info("Solicitação de token para definição da primeira senha: {}", email);
+
+        if (!user.isMustChangePassword()) {
+            log.warn("Geração de token para primeira senha ignorada para '{}': mustChangePassword está falso.", email);
+            throw new BadRequestException("A alteração da senha inicial não é necessária.");
+        }
+
+        String token = UUID.randomUUID().toString();
+        user.setResetToken(token);
+        user.setResetTokenExpires(Instant.now().plus(1, ChronoUnit.HOURS));
+        userRepo.save(user);
+
+        log.info("Token de recuperação da primeira senha gerado para '{}'.", email);
+
+        return buildPasswordResetUrl(email, token);
+    }
+
+    private String buildPasswordResetUrl(String email, String token) {
+        String frontendUrl = appProperties.getUrl().replaceAll("/+$", "");
+        return org.springframework.web.util.UriComponentsBuilder
+                .fromUriString(frontendUrl + "/reset-password")
+                .queryParam("token", token)
+                .queryParam("email", email)
+                .build()
+                .encode()
+                .toUriString();
     }
 
     public void validateResetToken(String rawEmail, String token) {
@@ -289,6 +329,7 @@ public class AuthService {
         }
 
         user.setPassword(passwordEncoder.encode(req.newPassword()));
+        user.setMustChangePassword(false);
         user.setResetToken(null);
         user.setResetTokenExpires(null);
         invalidateAllSessions(user);
