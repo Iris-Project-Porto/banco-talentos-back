@@ -13,6 +13,7 @@ import java.util.UUID;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -27,7 +28,7 @@ class AuthControllerTest extends BaseControllerTest {
     @Test
     void login_ValidRequest_ReturnsAuthResponse() throws Exception {
         AuthRequest req = new AuthRequest("test@vilt-group.com", "password123");
-        AuthResponse res = new AuthResponse("jwt-token", "refresh-token","Test User", "test@vilt-group.com", "RESOURCE", true);
+        AuthResponse res = new AuthResponse("jwt-token", "refresh-token","Test User", "test@vilt-group.com", "RESOURCE", true, true);
 
         when(authService.login(any(AuthRequest.class))).thenReturn(res);
 
@@ -38,13 +39,14 @@ class AuthControllerTest extends BaseControllerTest {
                 .andExpect(jsonPath("$.token").value("jwt-token"))
                 .andExpect(jsonPath("$.refreshToken").value("refresh-token"))
                 .andExpect(jsonPath("$.name").value("Test User"))
-                .andExpect(jsonPath("$.hasProfile").value(true));
+                .andExpect(jsonPath("$.hasProfile").value(true))
+                .andExpect(jsonPath("$.mustChangePassword").value(true));
     }
 
     @Test
     void refreshToken_ValidRequest_ReturnsAuthResponse() throws Exception {
         RefreshTokenRequest req = new RefreshTokenRequest("valid-refresh-token");
-        AuthResponse res = new AuthResponse("new-jwt-token", "new-refresh-token", "Test User", "test@vilt-group.com", "RESOURCE", true);
+        AuthResponse res = new AuthResponse("new-jwt-token", "new-refresh-token", "Test User", "test@vilt-group.com", "RESOURCE", true, false);
 
         when(authService.refreshToken(any(RefreshTokenRequest.class))).thenReturn(res);
 
@@ -54,7 +56,8 @@ class AuthControllerTest extends BaseControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.token").value("new-jwt-token"))
                 .andExpect(jsonPath("$.refreshToken").value("new-refresh-token"))
-                .andExpect(jsonPath("$.name").value("Test User"));
+                .andExpect(jsonPath("$.name").value("Test User"))
+                .andExpect(jsonPath("$.mustChangePassword").value(false));
     }
 
     @Test
@@ -139,6 +142,19 @@ class AuthControllerTest extends BaseControllerTest {
                         .content(asJsonString(req)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.message").value("Um link de redefinição foi enviado para o seu e-mail."));
+    }
+
+    @Test
+    void generateFirstPasswordReset_UsesAuthenticatedUser() throws Exception {
+        UUID userId = UUID.randomUUID();
+        when(authService.generateTokenForFirstPasswordReset(userId))
+                .thenReturn("https://app.example.com/reset-password?token=token123&email=test%40vilt-group.com");
+
+        mockMvc.perform(post("/api/v1/auth/first-password-reset")
+                        .with(user(userId.toString())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data")
+                        .value("https://app.example.com/reset-password?token=token123&email=test%40vilt-group.com"));
     }
 
     @Test

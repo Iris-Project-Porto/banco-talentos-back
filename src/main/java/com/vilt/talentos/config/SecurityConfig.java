@@ -58,6 +58,7 @@ public class SecurityConfig {
                 .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED))
             )
             .authorizeHttpRequests(auth -> auth
+                .requestMatchers(HttpMethod.POST, "/api/v1/auth/first-password-reset").authenticated()
                 .requestMatchers("/api/v1/auth/**").permitAll()
                 .requestMatchers("/api/v1/groups").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/skills").authenticated()

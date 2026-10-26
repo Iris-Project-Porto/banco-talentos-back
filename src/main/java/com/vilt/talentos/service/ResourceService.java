@@ -66,6 +66,7 @@ public class ResourceService {
                 .email(email)
                 .password(passwordEncoder.encode(provisionalPassword))
                 .role(UserRole.RESOURCE)
+                .mustChangePassword(true)
                 .status(DomainStatus.ACTIVE)
                 .emailVerified(true)
                 .group(group)

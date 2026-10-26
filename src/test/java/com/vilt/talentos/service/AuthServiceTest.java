@@ -25,6 +25,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.web.util.UriComponentsBuilder;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -84,6 +85,7 @@ class AuthServiceTest {
                 .name("Test User")
                 .password("encoded")
                 .emailVerified(true)
+                .mustChangePassword(true)
                 .status(DomainStatus.ACTIVE)
                 .build();
 
@@ -96,6 +98,7 @@ class AuthServiceTest {
         var response = authService.login(new AuthRequest("test@vilt-group.com", "password123"));
 
         assertTrue(response.hasProfile());
+        assertTrue(response.mustChangePassword());
         assertEquals("jwt-token", response.token());
         assertTrue(response.refreshToken() != null && !response.refreshToken().isBlank());
 
@@ -127,6 +130,7 @@ class AuthServiceTest {
         verify(userRepo).save(any(User.class));
         verify(userRepo).save(user);
         assertFalse(response.hasProfile());
+        assertFalse(response.mustChangePassword());
     }
 
     @Test
@@ -224,6 +228,7 @@ class AuthServiceTest {
         User user = User.builder()
                 .email(email)
                 .password("old-encoded-password")
+                .mustChangePassword(true)
                 .resetToken(token)
                 .resetTokenExpires(Instant.now().plus(1, ChronoUnit.HOURS))
                 .refreshToken("active-refresh-token")
@@ -243,9 +248,49 @@ class AuthServiceTest {
         verify(passwordEncoder).encode("new-password");
         verify(userRepo).save(user);
         assertEquals("encoded-password", user.getPassword());
+        assertFalse(user.isMustChangePassword());
         assertNull(user.getRefreshToken());
         assertNull(user.getRefreshTokenExpires());
         assertEquals(1, user.getTokenVersion());
+    }
+
+    @Test
+    void generateTokenForFirstPasswordReset() {
+        UUID userId = UUID.randomUUID();
+        User user = User.builder()
+                .id(userId)
+                .email("test@vilt-group.com")
+                .mustChangePassword(true)
+                .build();
+
+        when(userRepo.findById(userId)).thenReturn(Optional.of(user));
+        when(appProperties.getUrl()).thenReturn("https://app.example.com/");
+
+        String resetUrl = authService.generateTokenForFirstPasswordReset(userId);
+
+        assertTrue(resetUrl.startsWith("https://app.example.com/reset-password?token="));
+        var resetParams = UriComponentsBuilder.fromUriString(resetUrl).build().getQueryParams();
+        assertEquals(user.getEmail(), resetParams.getFirst("email"));
+        assertEquals(user.getResetToken(), resetParams.getFirst("token"));
+        assertTrue(user.getResetToken() != null && !user.getResetToken().isBlank());
+        verify(userRepo).save(user);
+    }
+
+    @Test
+    void generateTokenForFirstPasswordReset_WhenPasswordChangeIsNotRequired_LogsAndDoesNotGenerateToken() {
+        UUID userId = UUID.randomUUID();
+        User user = User.builder()
+                .id(userId)
+                .email("test@vilt-group.com")
+                .mustChangePassword(false)
+                .build();
+
+        when(userRepo.findById(userId)).thenReturn(Optional.of(user));
+
+        assertThrows(BadRequestException.class, () -> authService.generateTokenForFirstPasswordReset(userId));
+
+        assertNull(user.getResetToken());
+        verify(userRepo, never()).save(any(User.class));
     }
 
     @Test
