@@ -105,7 +105,6 @@ public class ProfileService {
     private Map<String, Object> profileAuditSnapshot(Profile profile) {
         Map<String, Object> snapshot = new LinkedHashMap<>();
         snapshot.put("photoUrl", profile.getPhotoUrl());
-        snapshot.put("cpf", profile.getCpf());
         snapshot.put("jobTitle", profile.getJobTitle());
         snapshot.put("contact", profile.getContact());
         snapshot.put("contactEmail", profile.getContactEmail());
