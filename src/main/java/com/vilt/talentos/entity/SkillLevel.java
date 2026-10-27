@@ -8,7 +8,8 @@ import lombok.RequiredArgsConstructor;
 public enum SkillLevel {
     BASIC("Básico"),
     INTERMEDIATE("Intermediário"),
-    ADVANCED("Avançado");
+    ADVANCED("Avançado"),
+    SPECIALIST("Especialista");
 
     private final String description;
 }

@@ -80,4 +80,11 @@ public class AdminSquadController {
     public void inactivate(@PathVariable UUID id) {
         squadService.setActiveStatus(id, false);
     }
+
+    @DeleteMapping("cleaning_delete/{id}")
+    @ResponseStatus (HttpStatus.OK)
+    @Operation (summary = "Excluir squad")
+    public void delete(@PathVariable UUID id) {
+        squadService.deleteSquad(id);
+    }
 }

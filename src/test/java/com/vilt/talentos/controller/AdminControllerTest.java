@@ -202,7 +202,6 @@ class AdminControllerTest extends BaseControllerTest {
                                 {
                                   "name": "João Silva",
                                   "email": "joao@vilt-group.com",
-                                  "cpf": "12345678901",
                                   "groupId": "%s"
                                 }
                                 """.formatted(UUID.randomUUID())))
