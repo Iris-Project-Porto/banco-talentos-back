@@ -93,7 +93,9 @@ public class ResourceEquipmentService {
     public void delete(UUID profileId, UUID equipmentId) {
         ResourceEquipment equipment = equipmentRepo.findByIdAndProfileId(equipmentId, profileId)
                 .orElseThrow(() -> new ResourceNotFoundException("Equipamento não encontrado"));
+        Map<String, Object> oldValue = equipmentAuditSnapshot(equipment);
         equipmentRepo.delete(equipment);
+        auditLogService.record(AuditOperation.DELETE, "RESOURCE_EQUIPMENT", equipmentId, oldValue, null);
         log.info("Equipamento {} removido do perfil {}", equipmentId, profileId);
     }
 
