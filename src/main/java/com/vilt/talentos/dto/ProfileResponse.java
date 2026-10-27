@@ -18,7 +18,6 @@ public record ProfileResponse(
     String email,
     String groupName,
     String photoUrl,
-    String cpf,
     String jobTitle,
     String area,
     String about,

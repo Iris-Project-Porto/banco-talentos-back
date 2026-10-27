@@ -84,9 +84,7 @@ public class GlobalExceptionHandler {
         String message = "Não foi possível concluir a operação. Verifique se os dados informados já existem.";
         String details = ex.getMostSpecificCause().getMessage();
         if (details != null) {
-            if (details.contains("cpf") || details.contains("uk_profiles_cpf")) {
-                message = "CPF já cadastrado.";
-            } else if (details.contains("email") || details.contains("users_email")) {
+            if (details.contains("email") || details.contains("users_email")) {
                 message = "E-mail já em uso.";
             }
         }
