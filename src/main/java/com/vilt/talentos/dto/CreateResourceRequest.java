@@ -14,9 +14,6 @@ public record CreateResourceRequest(
         @Email(message = "E-mail inválido.")
         String email,
 
-        @NotBlank(message = "O CPF é obrigatório.")
-        String cpf,
-
         @NotNull(message = "O grupo é obrigatório.")
         UUID groupId
 ) {

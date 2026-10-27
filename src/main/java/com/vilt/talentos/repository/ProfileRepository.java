@@ -12,6 +12,7 @@ import org.springframework.data.repository.query.Param;
 
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -21,10 +22,11 @@ public interface ProfileRepository extends JpaRepository<Profile, UUID>, JpaSpec
 
     boolean existsByUserId(UUID userId);
 
-    boolean existsByCpf(String cpf);
-
     @EntityGraph(attributePaths = {"user", "user.group", "skills", "skills.skill", "allocationProject", "allocationSquad", "equipments"})
     Page<Profile> findByStatus(DomainStatus status, Pageable pageable);
+
+    @EntityGraph(attributePaths = {"user", "user.group", "skills", "skills.skill", "allocationProject", "allocationSquad", "equipments"})
+    List<Profile> findByStatus(DomainStatus status);
 
     @Override
     @EntityGraph(attributePaths = {"user", "user.group", "skills", "skills.skill", "allocationProject", "allocationSquad", "equipments"})
@@ -32,7 +34,7 @@ public interface ProfileRepository extends JpaRepository<Profile, UUID>, JpaSpec
 
     @Override
     @EntityGraph(attributePaths = {"user", "user.group", "skills", "skills.skill", "allocationProject", "allocationSquad", "equipments"})
-    java.util.List<Profile> findAll();
+    List<Profile> findAll();
 
     @Override
     @EntityGraph(attributePaths = {"user", "user.group", "skills", "skills.skill", "allocationProject", "allocationSquad", "equipments"})

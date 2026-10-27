@@ -1,0 +1,2 @@
+DROP INDEX IF EXISTS uk_profiles_cpf;
+ALTER TABLE profiles DROP COLUMN IF EXISTS cpf;
