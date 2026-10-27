@@ -1,6 +1,7 @@
 package com.vilt.talentos.service;
 
 import com.vilt.talentos.dto.ResourceEquipmentRequest;
+import com.vilt.talentos.entity.AuditOperation;
 import com.vilt.talentos.entity.EquipmentStatus;
 import com.vilt.talentos.entity.Profile;
 import com.vilt.talentos.entity.ResourceEquipment;
@@ -13,7 +14,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -23,6 +26,7 @@ public class ResourceEquipmentService {
 
     private final ResourceEquipmentRepository equipmentRepo;
     private final ProfileRepository profileRepo;
+    private final AuditLogService auditLogService;
 
     @Transactional(readOnly = true)
     public List<ResourceEquipment> listByProfile(UUID profileId) {
@@ -50,6 +54,8 @@ public class ResourceEquipmentService {
                 .build();
 
         ResourceEquipment saved = equipmentRepo.save(equipment);
+        auditLogService.record(AuditOperation.CREATE, "RESOURCE_EQUIPMENT", saved.getId(),
+                null, equipmentAuditSnapshot(saved));
         log.info("Equipamento {} criado para o perfil {}", saved.getId(), profileId);
         return saved;
     }
@@ -82,6 +88,19 @@ public class ResourceEquipmentService {
                 .orElseThrow(() -> new ResourceNotFoundException("Equipamento não encontrado"));
         equipmentRepo.delete(equipment);
         log.info("Equipamento {} removido do perfil {}", equipmentId, profileId);
+    }
+
+    private Map<String, Object> equipmentAuditSnapshot(ResourceEquipment equipment) {
+        Map<String, Object> snapshot = new LinkedHashMap<>();
+        snapshot.put("profileId", equipment.getProfile().getId());
+        snapshot.put("tag", equipment.getTag());
+        snapshot.put("hostname", equipment.getHostname());
+        snapshot.put("assetNumber", equipment.getAssetNumber());
+        snapshot.put("brandOs", equipment.getBrandOs());
+        snapshot.put("processor", equipment.getProcessor());
+        snapshot.put("status", equipment.getStatus());
+        snapshot.put("notes", equipment.getNotes());
+        return snapshot;
     }
 
     private void ensureProfileExists(UUID profileId) {
