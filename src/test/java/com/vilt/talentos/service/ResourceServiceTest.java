@@ -59,13 +59,11 @@ class ResourceServiceTest {
         CreateResourceRequest request = new CreateResourceRequest(
                 "João Silva",
                 "joao@vilt-group.com",
-                "12345678901",
                 groupId
         );
 
         when(appProperties.getAllowedEmailDomain()).thenReturn("vilt-group.com");
         when(userRepo.findByEmailIgnoreCase("joao@vilt-group.com")).thenReturn(Optional.empty());
-        when(profileRepo.existsByCpf("12345678901")).thenReturn(false);
         when(groupRepo.findById(groupId)).thenReturn(Optional.of(group));
         when(passwordEncoder.encode(anyString())).thenReturn("encoded-password");
         when(userRepo.save(any(User.class))).thenAnswer(invocation -> {
@@ -95,7 +93,6 @@ class ResourceServiceTest {
         ArgumentCaptor<Profile> profileCaptor = ArgumentCaptor.forClass(Profile.class);
         verify(profileRepo).save(profileCaptor.capture());
         Profile savedProfile = profileCaptor.getValue();
-        assertEquals("12345678901", savedProfile.getCpf());
         assertEquals(DomainStatus.PENDING, savedProfile.getStatus());
         assertEquals(ResourceStatus.AVAILABLE, savedProfile.getResourceStatus());
         assertEquals(RegistrationStatus.NOT_REQUIRED, savedProfile.getRegistrationStatus());
@@ -118,75 +115,10 @@ class ResourceServiceTest {
         CreateResourceRequest request = new CreateResourceRequest(
                 "João Silva",
                 "joao@vilt-group.com",
-                "12345678901",
                 UUID.randomUUID()
         );
 
         assertThrows(BadRequestException.class, () -> resourceService.createByAdmin(request));
     }
 
-    @Test
-    void createByAdmin_WithFormattedCpf_ShouldPersistNormalizedCpf() {
-        UUID groupId = UUID.randomUUID();
-        Group group = Group.builder().id(groupId).name("Delivery").build();
-        CreateResourceRequest request = new CreateResourceRequest(
-                "João Silva",
-                "joao@vilt-group.com",
-                "123.456.789-01",
-                groupId
-        );
-
-        when(appProperties.getAllowedEmailDomain()).thenReturn("vilt-group.com");
-        when(userRepo.findByEmailIgnoreCase("joao@vilt-group.com")).thenReturn(Optional.empty());
-        when(profileRepo.existsByCpf("12345678901")).thenReturn(false);
-        when(groupRepo.findById(groupId)).thenReturn(Optional.of(group));
-        when(passwordEncoder.encode(anyString())).thenReturn("encoded-password");
-        when(userRepo.save(any(User.class))).thenAnswer(invocation -> {
-            User user = invocation.getArgument(0);
-            user.setId(UUID.randomUUID());
-            return user;
-        });
-        when(profileRepo.save(any(Profile.class))).thenAnswer(invocation -> {
-            Profile profile = invocation.getArgument(0);
-            profile.setId(UUID.randomUUID());
-            return profile;
-        });
-        when(appProperties.getUrl()).thenReturn("http://localhost:5173");
-
-        resourceService.createByAdmin(request);
-
-        ArgumentCaptor<Profile> profileCaptor = ArgumentCaptor.forClass(Profile.class);
-        verify(profileRepo).save(profileCaptor.capture());
-        assertEquals("12345678901", profileCaptor.getValue().getCpf());
-    }
-
-    @Test
-    void createByAdmin_WhenCpfAlreadyExists_ShouldThrowBadRequest() {
-        when(appProperties.getAllowedEmailDomain()).thenReturn("vilt-group.com");
-        when(userRepo.findByEmailIgnoreCase("joao@vilt-group.com")).thenReturn(Optional.empty());
-        when(profileRepo.existsByCpf("12345678901")).thenReturn(true);
-
-        CreateResourceRequest request = new CreateResourceRequest(
-                "João Silva",
-                "joao@vilt-group.com",
-                "12345678901",
-                UUID.randomUUID()
-        );
-
-        assertThrows(BadRequestException.class, () -> resourceService.createByAdmin(request));
-    }
-
-    @Test
-    void createByAdmin_WhenCpfIsInvalid_ShouldThrowBadRequest() {
-        when(appProperties.getAllowedEmailDomain()).thenReturn("vilt-group.com");
-
-        CreateResourceRequest request = new CreateResourceRequest(
-                "João Silva",
-                "joao@vilt-group.com",
-                "123",
-                UUID.randomUUID()
-        );
-
-        assertThrows(BadRequestException.class, () -> resourceService.createByAdmin(request));
-    }
 }

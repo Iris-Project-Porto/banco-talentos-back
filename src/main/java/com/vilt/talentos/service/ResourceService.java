@@ -44,17 +44,11 @@ public class ResourceService {
     @Transactional
     public CreateResourceResponse createByAdmin(CreateResourceRequest request) {
         String email = normalizeAndValidateEmail(request.email());
-        String cpf = normalizeAndValidateCpf(request.cpf());
         log.info("Iniciando cadastro administrativo de recurso para o e-mail: {}", email);
 
         if (userRepo.findByEmailIgnoreCase(email).isPresent()) {
             log.warn("Falha no cadastro de recurso: e-mail '{}' já está em uso.", email);
             throw new BadRequestException("E-mail já em uso.");
-        }
-
-        if (profileRepo.existsByCpf(cpf)) {
-            log.warn("Falha no cadastro de recurso: CPF '{}' já está em uso.", cpf);
-            throw new BadRequestException("CPF já cadastrado.");
         }
 
         var group = groupRepo.findById(request.groupId())
@@ -79,7 +73,6 @@ public class ResourceService {
 
         Profile profile = Profile.builder()
                 .user(user)
-                .cpf(cpf)
                 .status(DomainStatus.PENDING)
                 .registrationStatus(RegistrationStatus.NOT_REQUIRED)
                 .resourceStatus(ResourceStatus.AVAILABLE)
@@ -112,19 +105,6 @@ public class ResourceService {
         }
 
         return normalizedEmail;
-    }
-
-    private String normalizeAndValidateCpf(String cpf) {
-        if (cpf == null || cpf.isBlank()) {
-            throw new BadRequestException("O CPF é obrigatório.");
-        }
-
-        String normalized = cpf.replaceAll("\\D", "");
-        if (normalized.length() != 11) {
-            throw new BadRequestException("CPF inválido.");
-        }
-
-        return normalized;
     }
 
     private String generateProvisionalPassword() {

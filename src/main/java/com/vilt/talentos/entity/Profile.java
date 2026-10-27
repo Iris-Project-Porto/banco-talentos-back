@@ -29,8 +29,6 @@ public class Profile extends BaseAuditableEntity {
     @Column(name = "photo_url")
     private String photoUrl;
 
-    private String cpf;
-
     @Column(name = "job_title")
     private String jobTitle;
 
