@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Objects;
 import java.util.Map;
 import java.util.UUID;
 
@@ -64,6 +65,7 @@ public class ResourceEquipmentService {
     public ResourceEquipment update(UUID profileId, UUID equipmentId, ResourceEquipmentRequest req) {
         ResourceEquipment equipment = equipmentRepo.findByIdAndProfileId(equipmentId, profileId)
                 .orElseThrow(() -> new ResourceNotFoundException("Equipamento não encontrado"));
+        Map<String, Object> oldValue = equipmentAuditSnapshot(equipment);
 
         if (req.tag() != null) equipment.setTag(req.tag());
         if (req.hostname() != null) equipment.setHostname(req.hostname());
@@ -78,6 +80,11 @@ public class ResourceEquipmentService {
         equipment.setNotes(resolveNotes(status, req.notes()));
 
         ResourceEquipment saved = equipmentRepo.save(equipment);
+        Map<String, Object> newValue = equipmentAuditSnapshot(saved);
+        if (!Objects.equals(oldValue, newValue)) {
+            auditLogService.record(AuditOperation.UPDATE, "RESOURCE_EQUIPMENT", saved.getId(),
+                    oldValue, newValue);
+        }
         log.info("Equipamento {} atualizado no perfil {}", equipmentId, profileId);
         return saved;
     }
