@@ -1,5 +1,6 @@
 package com.vilt.talentos.controller;
 
+import com.vilt.talentos.dto.JobPostingCandidateMatchResponse;
 import com.vilt.talentos.dto.JobPostingRequest;
 import com.vilt.talentos.dto.JobPostingResponse;
 import com.vilt.talentos.service.JobPostingService;
@@ -39,8 +40,20 @@ public class AdminJobPostingController {
 
     @GetMapping("/{id}")
     @Operation(summary = "Obter vaga por ID")
-    public JobPostingResponse getById (@PathVariable UUID id) {
+    public JobPostingResponse getById(@PathVariable UUID id) {
         return jobPostingService.findById(id);
+    }
+
+    @GetMapping("/{id}/matches")
+    @Operation(summary = "Ranking de candidatos compatíveis (Match)", description = "Calcula a compatibilidade dos colaboradores com a vaga e retorna o ranking com score, skills e resumo.")
+    public Page<JobPostingCandidateMatchResponse> getCandidateMatches(
+            @PathVariable UUID id,
+            @RequestParam(required = false) Integer minScore,
+            @RequestParam(required = false) String availability,
+            @RequestParam(required = false) String search,
+            @PageableDefault(size = 20) Pageable pageable
+    ) {
+        return jobPostingService.findCandidatesForJobPosting(id, minScore, availability, search, pageable);
     }
 
     @PostMapping
@@ -67,7 +80,7 @@ public class AdminJobPostingController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @Operation(summary = "Desativar vaga")
     public void deactivate(@PathVariable UUID id) {
-        jobPostingService.setActiveStatus(id, false);;
+        jobPostingService.setActiveStatus(id, false);
     }
 
     @DeleteMapping("cleaning_delete/{id}")
