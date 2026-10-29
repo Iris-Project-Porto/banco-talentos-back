@@ -172,6 +172,7 @@ Principais controllers:
 - FormSubmissionController
 - GroupController
 - SkillController
+- AuditLogController
 - AdminSkillController
 - AdminProjectController
 - AdminJobPostingController
@@ -258,6 +259,24 @@ http://localhost:8080/swagger-ui/index.html
 |----------|----------|----------|
 | GET | `/api/profile/me` | Retorna perfil do usuário autenticado |
 | POST | `/api/profile` | Cria ou atualiza perfil |
+
+---
+
+## Auditoria
+
+| Método | Endpoint | Descrição |
+|----------|----------|----------|
+| GET | `/api/v1/audit` | Lista os registros de auditoria visíveis para o usuário autenticado |
+
+O endpoint requer um token JWT válido enviado no cabeçalho `Authorization` com
+o esquema `Bearer`.
+Administradores (`ADMIN`) recebem todos os registros, ordenados do mais recente
+para o mais antigo. Recursos (`RESOURCE`) recebem os registros associados ao
+próprio perfil; se ainda não tiverem um perfil, a resposta será uma lista vazia.
+
+Cada registro contém `id`, `user`, `operation`, `entityType`, `entityId`,
+`oldValue`, `newValue` e `createdAt`. Os valores anterior e atual são JSON e
+podem ser `null` quando não se aplicam à operação.
 
 ---
 
