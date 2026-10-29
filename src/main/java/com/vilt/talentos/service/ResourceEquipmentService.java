@@ -101,14 +101,14 @@ public class ResourceEquipmentService {
 
     private Map<String, Object> equipmentAuditSnapshot(ResourceEquipment equipment) {
         Map<String, Object> snapshot = new LinkedHashMap<>();
-        snapshot.put("profileId", equipment.getProfile().getId());
-        snapshot.put("tag", equipment.getTag());
-        snapshot.put("hostname", equipment.getHostname());
-        snapshot.put("assetNumber", equipment.getAssetNumber());
-        snapshot.put("brandOs", equipment.getBrandOs());
-        snapshot.put("processor", equipment.getProcessor());
-        snapshot.put("status", equipment.getStatus());
-        snapshot.put("notes", equipment.getNotes());
+        snapshot.put("ID do perfil", equipment.getProfile().getId());
+        snapshot.put("Etiqueta", equipment.getTag());
+        snapshot.put("Nome do dispositivo", equipment.getHostname());
+        snapshot.put("Número do patrimônio", equipment.getAssetNumber());
+        snapshot.put("Marca/Sistema operacional", equipment.getBrandOs());
+        snapshot.put("Processador", equipment.getProcessor());
+        snapshot.put("Status", equipment.getStatus());
+        snapshot.put("Observações", equipment.getNotes());
         return snapshot;
     }
 

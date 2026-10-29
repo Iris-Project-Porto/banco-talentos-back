@@ -104,55 +104,50 @@ public class ProfileService {
 
     private Map<String, Object> profileAuditSnapshot(Profile profile) {
         Map<String, Object> snapshot = new LinkedHashMap<>();
-        snapshot.put("photoUrl", profile.getPhotoUrl());
-        snapshot.put("jobTitle", profile.getJobTitle());
-        snapshot.put("contact", profile.getContact());
-        snapshot.put("contactEmail", profile.getContactEmail());
-        snapshot.put("phone", profile.getPhone());
-        snapshot.put("address", profile.getAddress());
-        snapshot.put("postalCode", profile.getPostalCode());
-        snapshot.put("cityState", profile.getCityState());
-        snapshot.put("area", profile.getArea());
-        snapshot.put("about", profile.getAbout());
-        snapshot.put("stackReadiness", profile.getStackReadiness());
-        snapshot.put("allocationStatus", profile.getAllocationStatus());
-        snapshot.put("mentorshipLevel", profile.getMentorshipLevel());
-        snapshot.put("autonomy", profile.getAutonomy());
-        snapshot.put("careerPath", profile.getCareerPath());
-        snapshot.put("certificationsCount", profile.getCertificationsCount());
-        snapshot.put("monitoringLevel", profile.getMonitoringLevel());
-        snapshot.put("level", profile.getLevel());
-        snapshot.put("levelScore", profile.getLevelScore());
-        snapshot.put("levelJustification", profile.getLevelJustification());
-        snapshot.put("experienceYears", profile.getExperienceYears());
-        snapshot.put("projectsCount", profile.getProjectsCount());
-        snapshot.put("availability", profile.getAvailability());
-        snapshot.put("certifications", profile.getCertifications());
-        snapshot.put("linkedinUrl", profile.getLinkedinUrl());
-        snapshot.put("githubUrl", profile.getGithubUrl());
-        snapshot.put("codeReviewRole", profile.getCodeReviewRole());
-        snapshot.put("status", profile.getStatus());
-        snapshot.put("skills", profile.getSkills().stream()
+        snapshot.put("URL da foto", profile.getPhotoUrl());
+        snapshot.put("Cargo", profile.getJobTitle());
+        snapshot.put("Contato", profile.getContact());
+        snapshot.put("E-mail de contato", profile.getContactEmail());
+        snapshot.put("Telefone", profile.getPhone());
+        snapshot.put("Endereço", profile.getAddress());
+        snapshot.put("CEP", profile.getPostalCode());
+        snapshot.put("Cidade/Estado", profile.getCityState());
+        snapshot.put("Área", profile.getArea());
+        snapshot.put("Sobre mim", profile.getAbout());
+        snapshot.put("Prontidão técnica", profile.getStackReadiness());
+        snapshot.put("Status de alocação", profile.getAllocationStatus());
+        snapshot.put("Nível de mentoria", profile.getMentorshipLevel());
+        snapshot.put("Autonomia", profile.getAutonomy());
+        snapshot.put("Trilha de carreira", profile.getCareerPath());
+        snapshot.put("Quantidade de certificações", profile.getCertificationsCount());
+        snapshot.put("Nível de acompanhamento", profile.getMonitoringLevel());
+        snapshot.put("Nível", profile.getLevel());
+        snapshot.put("Pontuação do nível", profile.getLevelScore());
+        snapshot.put("Justificativa do nível", profile.getLevelJustification());
+        snapshot.put("Anos de experiência", profile.getExperienceYears());
+        snapshot.put("Quantidade de projetos", profile.getProjectsCount());
+        snapshot.put("Disponibilidade", profile.getAvailability());
+        snapshot.put("Certificações", profile.getCertifications());
+        snapshot.put("URL do LinkedIn", profile.getLinkedinUrl());
+        snapshot.put("URL do GitHub", profile.getGithubUrl());
+        snapshot.put("Papel em revisão de código", profile.getCodeReviewRole());
+        snapshot.put("Status", profile.getStatus());
+        snapshot.put("Competências", profile.getSkills().stream()
                 .sorted(Comparator
                         .comparing((ProfileSkill skill) -> skill.getSkill().getName(), String.CASE_INSENSITIVE_ORDER)
                         .thenComparing(ProfileSkill::getId, Comparator.nullsLast(Comparator.naturalOrder())))
-                .map(skill -> new ProfileSkillAuditSnapshot(
-                        skill.getId(),
-                        skill.getSkill().getId(),
-                        skill.getSkill().getName(),
-                        skill.getSkill().getType(),
-                        skill.getProficiencyLevel()))
+                .map(skill -> {
+                    Map<String, Object> skillSnapshot = new LinkedHashMap<>();
+                    skillSnapshot.put("ID", skill.getId());
+                    skillSnapshot.put("ID da competência", skill.getSkill().getId());
+                    skillSnapshot.put("Competência", skill.getSkill().getName());
+                    skillSnapshot.put("Tipo", skill.getSkill().getType());
+                    skillSnapshot.put("Nível de proficiência", skill.getProficiencyLevel());
+                    return skillSnapshot;
+                })
                 .toList());
         return snapshot;
     }
-
-    private record ProfileSkillAuditSnapshot(
-            UUID id,
-            UUID skillId,
-            String name,
-            SkillType type,
-            Integer proficiencyLevel
-    ) {}
 
     @Transactional
     public Profile updateMyProfile(UUID userId, ProfileSelfUpdateRequest req) {

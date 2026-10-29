@@ -3,6 +3,7 @@ package com.vilt.talentos.service;
 import com.vilt.talentos.dto.JobPostingCandidateMatchResponse;
 import com.vilt.talentos.dto.JobPostingRequest;
 import com.vilt.talentos.dto.JobPostingResponse;
+import com.vilt.talentos.dto.JobPostingSkillResponse;
 import com.vilt.talentos.dto.JobPostingSkillRequest;
 import com.vilt.talentos.entity.*;
 import com.vilt.talentos.exception.ResourceNotFoundException;
@@ -20,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -142,10 +144,59 @@ public class JobPostingService {
                 AuditOperation.UPDATE,
                 "JOB_POSTING",
                 updatedJobPosting.getId(),
-                oldValue,
-                newValue);
+                jobPostingAuditSnapshot(oldValue),
+                jobPostingAuditSnapshot(newValue));
 
         return newValue;
+    }
+
+    private Map<String, Object> jobPostingAuditSnapshot(JobPostingResponse jobPosting) {
+        Map<String, Object> snapshot = new LinkedHashMap<>();
+        putIfNotNull(snapshot, "ID", jobPosting.id());
+        putIfNotNull(snapshot, "Código da vaga", jobPosting.vacancyCode());
+        putIfNotNull(snapshot, "Título", jobPosting.title());
+        putIfNotNull(snapshot, "Projeto", jobPosting.projectName());
+        putIfNotNull(snapshot, "ID do projeto", jobPosting.projectId());
+        putIfNotNull(snapshot, "Squad", jobPosting.squadName());
+        putIfNotNull(snapshot, "ID da squad", jobPosting.squadId());
+        putIfNotNull(snapshot, "Nível de experiência", jobPosting.experienceLevel());
+        putIfNotNull(snapshot, "Descrição do nível de experiência", jobPosting.experienceLevelDescription());
+        putIfNotNull(snapshot, "Descrição", jobPosting.description());
+        putIfNotNull(snapshot, "Recrutador", jobPosting.recruiter());
+        putIfNotNull(snapshot, "Semanas estimadas de alocação", jobPosting.estimatedAllocationWeeks());
+        putIfNotNull(snapshot, "Status", jobPosting.status());
+        putIfNotNull(snapshot, "Modalidade", jobPosting.modality());
+        putIfNotNull(snapshot, "Observações", jobPosting.notes());
+        putIfNotNull(snapshot, "Data de abertura", jobPosting.openingDate());
+        putIfNotNull(snapshot, "Data de encerramento", jobPosting.closingDate());
+        putIfNotNull(snapshot, "Urgente", jobPosting.isUrgent());
+        putIfNotNull(snapshot, "Ativa", jobPosting.active());
+        if (jobPosting.skills() != null) {
+            snapshot.put("Competências", jobPosting.skills().stream()
+                    .map(this::jobPostingSkillAuditSnapshot)
+                    .toList());
+        }
+        putIfNotNull(snapshot, "Criado em", jobPosting.createdAt());
+        putIfNotNull(snapshot, "Atualizado em", jobPosting.updatedAt());
+        putIfNotNull(snapshot, "Criado por", jobPosting.createdBy());
+        putIfNotNull(snapshot, "Atualizado por", jobPosting.updatedBy());
+        return snapshot;
+    }
+
+    private Map<String, Object> jobPostingSkillAuditSnapshot(JobPostingSkillResponse skill) {
+        Map<String, Object> snapshot = new LinkedHashMap<>();
+        snapshot.put("Competência", skill.name());
+        snapshot.put("Tipo", skill.type());
+        snapshot.put("Nível mínimo", skill.minLevel());
+        snapshot.put("Descrição", skill.description());
+        snapshot.put("Peso de importância", skill.importanceWeight());
+        return snapshot;
+    }
+
+    private void putIfNotNull(Map<String, Object> snapshot, String key, Object value) {
+        if (value != null) {
+            snapshot.put(key, value);
+        }
     }
 
     private void reconcileSkills(JobPosting jobPosting, List<JobPostingSkillRequest> skillRequests) {
@@ -218,8 +269,8 @@ public class JobPostingService {
                 AuditOperation.UPDATE,
                 "JOB_POSTING",
                 updatedJobPosting.getId(),
-                Map.of("active", oldActive),
-                Map.of("active", updatedJobPosting.getActive()));
+                Map.of("Ativa", oldActive),
+                Map.of("Ativa", updatedJobPosting.getActive()));
 
         log.info("Status da vaga ID: {} atualizado para: {}", id, active);
     }
