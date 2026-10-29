@@ -20,6 +20,9 @@ public interface ProfileRepository extends JpaRepository<Profile, UUID>, JpaSpec
     @EntityGraph(attributePaths = {"user", "user.group", "skills", "skills.skill", "allocationProject", "allocationSquad", "equipments"})
     Optional<Profile> findByUserId(UUID userId);
 
+    @Query("select p.id from Profile p where p.user.id = :userId")
+    Optional<UUID> findProfileIdByUserId(@Param("userId") UUID userId);
+
     boolean existsByUserId(UUID userId);
 
     @EntityGraph(attributePaths = {"user", "user.group", "skills", "skills.skill", "allocationProject", "allocationSquad", "equipments"})

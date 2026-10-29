@@ -5,8 +5,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.vilt.talentos.entity.AuditLog;
 import com.vilt.talentos.entity.AuditOperation;
 import com.vilt.talentos.entity.User;
+import com.vilt.talentos.entity.UserRole;
 import com.vilt.talentos.exception.UnauthorizedException;
 import com.vilt.talentos.repository.AuditLogRepository;
+import com.vilt.talentos.repository.ProfileRepository;
 import com.vilt.talentos.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
@@ -14,6 +16,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -21,8 +24,22 @@ import java.util.UUID;
 public class AuditLogService {
 
     private final AuditLogRepository auditLogRepository;
+    private final ProfileRepository profileRepository;
     private final UserRepository userRepository;
     private final ObjectMapper objectMapper;
+
+    @Transactional(readOnly = true)
+    public List<AuditLog> listForCurrentUser() {
+        User currentUser = getCurrentUser();
+
+        if (currentUser.getRole() == UserRole.ADMIN) {
+            return auditLogRepository.findAllByOrderByCreatedAtDesc();
+        }
+
+        return profileRepository.findProfileIdByUserId(currentUser.getId())
+                .map(auditLogRepository::findByEntityIdOrderByCreatedAtDesc)
+                .orElseGet(List::of);
+    }
 
     @Transactional
     public void record(
