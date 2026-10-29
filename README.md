@@ -274,7 +274,7 @@ Administradores (`ADMIN`) recebem todos os registros, ordenados do mais recente
 para o mais antigo. Recursos (`RESOURCE`) recebem os registros associados ao
 próprio perfil; se ainda não tiverem um perfil, a resposta será uma lista vazia.
 
-Cada registro contém `id`, `user`, `operation`, `entityType`, `entityId`,
+Cada registro contém `id`, `userId`, `operation`, `entityType`, `entityId`,
 `oldValue`, `newValue` e `createdAt`. Os valores anterior e atual são JSON e
 podem ser `null` quando não se aplicam à operação.
 

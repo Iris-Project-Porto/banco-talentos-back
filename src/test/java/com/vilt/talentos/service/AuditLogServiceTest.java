@@ -1,6 +1,7 @@
 package com.vilt.talentos.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.vilt.talentos.dto.AuditLogResponse;
 import com.vilt.talentos.entity.AuditLog;
 import com.vilt.talentos.entity.User;
 import com.vilt.talentos.entity.UserRole;
@@ -61,11 +62,15 @@ class AuditLogServiceTest {
     @Test
     void listForCurrentUser_AdminReturnsAllAuditLogs() {
         User admin = User.builder().id(userId).role(UserRole.ADMIN).build();
-        List<AuditLog> auditLogs = List.of(AuditLog.builder().build());
+        AuditLog auditLog = AuditLog.builder().user(admin).build();
+        List<AuditLog> auditLogs = List.of(auditLog);
         when(userRepository.findById(userId)).thenReturn(Optional.of(admin));
         when(auditLogRepository.findAllByOrderByCreatedAtDesc()).thenReturn(auditLogs);
 
-        assertEquals(auditLogs, auditLogService.listForCurrentUser());
+        List<AuditLogResponse> result = auditLogService.listForCurrentUser();
+
+        assertEquals(1, result.size());
+        assertEquals(userId, result.get(0).userId());
 
         verify(auditLogRepository).findAllByOrderByCreatedAtDesc();
         verify(profileRepository, never()).findProfileIdByUserId(userId);
@@ -80,7 +85,10 @@ class AuditLogServiceTest {
         when(profileRepository.findProfileIdByUserId(userId)).thenReturn(Optional.of(profileId));
         when(auditLogRepository.findByEntityIdOrderByCreatedAtDesc(profileId)).thenReturn(auditLogs);
 
-        assertEquals(auditLogs, auditLogService.listForCurrentUser());
+        List<AuditLogResponse> result = auditLogService.listForCurrentUser();
+
+        assertEquals(1, result.size());
+        assertEquals(profileId, result.get(0).entityId());
 
         verify(auditLogRepository).findByEntityIdOrderByCreatedAtDesc(profileId);
         verify(auditLogRepository, never()).findAllByOrderByCreatedAtDesc();

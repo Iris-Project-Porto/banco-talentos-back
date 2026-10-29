@@ -2,6 +2,7 @@ package com.vilt.talentos.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.vilt.talentos.dto.AuditLogResponse;
 import com.vilt.talentos.entity.AuditLog;
 import com.vilt.talentos.entity.AuditOperation;
 import com.vilt.talentos.entity.User;
@@ -29,16 +30,19 @@ public class AuditLogService {
     private final ObjectMapper objectMapper;
 
     @Transactional(readOnly = true)
-    public List<AuditLog> listForCurrentUser() {
+    public List<AuditLogResponse> listForCurrentUser() {
         User currentUser = getCurrentUser();
+        List<AuditLog> auditLogs;
 
         if (currentUser.getRole() == UserRole.ADMIN) {
-            return auditLogRepository.findAllByOrderByCreatedAtDesc();
+            auditLogs = auditLogRepository.findAllByOrderByCreatedAtDesc();
+        } else {
+            auditLogs = profileRepository.findProfileIdByUserId(currentUser.getId())
+                    .map(auditLogRepository::findByEntityIdOrderByCreatedAtDesc)
+                    .orElseGet(List::of);
         }
 
-        return profileRepository.findProfileIdByUserId(currentUser.getId())
-                .map(auditLogRepository::findByEntityIdOrderByCreatedAtDesc)
-                .orElseGet(List::of);
+        return auditLogs.stream().map(AuditLogResponse::from).toList();
     }
 
     @Transactional

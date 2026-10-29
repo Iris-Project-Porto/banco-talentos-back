@@ -1,6 +1,6 @@
 package com.vilt.talentos.controller;
 
-import com.vilt.talentos.entity.AuditLog;
+import com.vilt.talentos.dto.AuditLogResponse;
 import com.vilt.talentos.service.AuditLogService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -23,7 +23,7 @@ public class AuditLogController {
 
     @GetMapping
     @Operation(summary = "Listar registros de auditoria")
-    public List<AuditLog> list() {
+    public List<AuditLogResponse> list() {
         return auditLogService.listForCurrentUser();
     }
 }
