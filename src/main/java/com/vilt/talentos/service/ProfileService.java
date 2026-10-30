@@ -132,15 +132,15 @@ public class ProfileService {
         snapshot.put("URL do GitHub", profile.getGithubUrl());
         snapshot.put("Papel em revisão de código", profile.getCodeReviewRole());
         snapshot.put("Status", profile.getStatus());
-        snapshot.put("Competências", profile.getSkills().stream()
+        snapshot.put("Skills", profile.getSkills().stream()
                 .sorted(Comparator
                         .comparing((ProfileSkill skill) -> skill.getSkill().getName(), String.CASE_INSENSITIVE_ORDER)
                         .thenComparing(ProfileSkill::getId, Comparator.nullsLast(Comparator.naturalOrder())))
                 .map(skill -> {
                     Map<String, Object> skillSnapshot = new LinkedHashMap<>();
                     skillSnapshot.put("ID", skill.getId());
-                    skillSnapshot.put("ID da competência", skill.getSkill().getId());
-                    skillSnapshot.put("Competência", skill.getSkill().getName());
+                    skillSnapshot.put("ID da skill", skill.getSkill().getId());
+                    skillSnapshot.put("Skill", skill.getSkill().getName());
                     skillSnapshot.put("Tipo", skill.getSkill().getType());
                     skillSnapshot.put("Nível de proficiência", skill.getProficiencyLevel());
                     return skillSnapshot;
