@@ -82,9 +82,9 @@ public class ProfileService {
 
         Map<String, Object> newValue = profileAuditSnapshot(saved);
         if (isNewProfile) {
-            auditLogService.record(AuditOperation.CREATE, "PROFILE", saved.getId(), null, newValue);
+            auditLogService.record(AuditOperation.CREATE, "PROFILE", saved.getId(), saved.getUser().getId(), null, newValue);
         } else if (!Objects.equals(oldValue, newValue)) {
-            auditLogService.record(AuditOperation.UPDATE, "PROFILE", saved.getId(), oldValue, newValue);
+            auditLogService.record(AuditOperation.UPDATE, "PROFILE", saved.getId(), saved.getUser().getId(), oldValue, newValue);
         }
 
         // Notificar admins se o perfil foi submetido (se estava ATIVO ou se é novo)
@@ -181,7 +181,7 @@ public class ProfileService {
         Profile saved = profileRepo.save(profile);
         Map<String, Object> newValue = profileAuditSnapshot(saved);
         if (!Objects.equals(oldValue, newValue)) {
-            auditLogService.record(AuditOperation.UPDATE, "PROFILE", saved.getId(), oldValue, newValue);
+            auditLogService.record(AuditOperation.UPDATE, "PROFILE", saved.getId(), saved.getUser().getId(), oldValue, newValue);
         }
         log.info("Perfil ID: {} atualizado pelo recurso com sucesso.", saved.getId());
         return saved;
@@ -388,7 +388,7 @@ public class ProfileService {
         Profile saved = profileRepo.save(profile);
         Map<String, Object> newValue = profileAuditSnapshot(saved);
         if (!Objects.equals(oldValue, newValue)) {
-            auditLogService.record(AuditOperation.UPDATE, "PROFILE", saved.getId(), oldValue, newValue);
+            auditLogService.record(AuditOperation.UPDATE, "PROFILE", saved.getId(), saved.getUser().getId(), oldValue, newValue);
         }
         log.info("Perfil ID: {} atualizado administrativamente com sucesso.", profileId);
 
