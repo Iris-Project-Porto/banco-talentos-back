@@ -5,6 +5,7 @@ import com.vilt.talentos.dto.AuditLogResponse;
 import com.vilt.talentos.entity.AuditLog;
 import com.vilt.talentos.entity.User;
 import com.vilt.talentos.entity.UserRole;
+import com.vilt.talentos.entity.AuditOperation;
 import com.vilt.talentos.repository.AuditLogRepository;
 import com.vilt.talentos.repository.ProfileRepository;
 import com.vilt.talentos.repository.UserRepository;
@@ -19,6 +20,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -26,6 +28,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.times;
+import static org.mockito.ArgumentMatchers.any;
 
 @ExtendWith(MockitoExtension.class)
 class AuditLogServiceTest {
@@ -78,30 +82,81 @@ class AuditLogServiceTest {
 
     @Test
     void listForCurrentUser_ResourceReturnsLogsForOwnProfile() {
-        UUID profileId = UUID.randomUUID();
         User resource = User.builder().id(userId).role(UserRole.RESOURCE).build();
-        List<AuditLog> auditLogs = List.of(AuditLog.builder().entityId(profileId).build());
+        UUID auditEntityId = UUID.randomUUID();
+        List<AuditLog> auditLogs = List.of(AuditLog.builder().entityId(auditEntityId).build());
         when(userRepository.findById(userId)).thenReturn(Optional.of(resource));
-        when(profileRepository.findProfileIdByUserId(userId)).thenReturn(Optional.of(profileId));
-        when(auditLogRepository.findByEntityIdOrderByCreatedAtDesc(profileId)).thenReturn(auditLogs);
+        when(auditLogRepository.findByUserAffectedIdOrderByCreatedAtDesc(userId)).thenReturn(auditLogs);
 
         List<AuditLogResponse> result = auditLogService.listForCurrentUser();
 
         assertEquals(1, result.size());
-        assertEquals(profileId, result.get(0).entityId());
+        assertEquals(auditEntityId, result.get(0).entityId());
 
-        verify(auditLogRepository).findByEntityIdOrderByCreatedAtDesc(profileId);
+        verify(auditLogRepository).findByUserAffectedIdOrderByCreatedAtDesc(userId);
         verify(auditLogRepository, never()).findAllByOrderByCreatedAtDesc();
+        verify(profileRepository, never()).findProfileIdByUserId(userId);
     }
 
     @Test
     void listForCurrentUser_ResourceWithoutProfileReturnsEmptyList() {
         User resource = User.builder().id(userId).role(UserRole.RESOURCE).build();
         when(userRepository.findById(userId)).thenReturn(Optional.of(resource));
-        when(profileRepository.findProfileIdByUserId(userId)).thenReturn(Optional.empty());
+        when(auditLogRepository.findByUserAffectedIdOrderByCreatedAtDesc(userId)).thenReturn(List.of());
 
         assertEquals(List.of(), auditLogService.listForCurrentUser());
 
         verify(auditLogRepository, never()).findAllByOrderByCreatedAtDesc();
+    }
+
+    @Test
+    void list_AdminFiltersByAffectedUser() {
+        UUID affectedUserId = UUID.randomUUID();
+        User admin = User.builder().id(userId).role(UserRole.ADMIN).build();
+        when(userRepository.findById(userId)).thenReturn(Optional.of(admin));
+        when(auditLogRepository.findByUserAffectedIdOrderByCreatedAtDesc(affectedUserId))
+                .thenReturn(List.of());
+
+        auditLogService.list(affectedUserId);
+
+        verify(auditLogRepository).findByUserAffectedIdOrderByCreatedAtDesc(affectedUserId);
+        verify(auditLogRepository, never()).findAllByOrderByCreatedAtDesc();
+    }
+
+    @Test
+    void list_ResourceIgnoresRequestedAffectedUserAndReturnsOwnAudits() {
+        UUID otherUserId = UUID.randomUUID();
+        User resource = User.builder().id(userId).role(UserRole.RESOURCE).build();
+        when(userRepository.findById(userId)).thenReturn(Optional.of(resource));
+        when(auditLogRepository.findByUserAffectedIdOrderByCreatedAtDesc(userId))
+                .thenReturn(List.of());
+
+        auditLogService.list(otherUserId);
+
+        verify(auditLogRepository).findByUserAffectedIdOrderByCreatedAtDesc(userId);
+        verify(auditLogRepository, never())
+                .findByUserAffectedIdOrderByCreatedAtDesc(otherUserId);
+    }
+
+    @Test
+    void recordForAffectedUsersCreatesOneLineForEachUniqueAffectedUser() {
+        UUID firstAffectedUserId = UUID.randomUUID();
+        UUID secondAffectedUserId = UUID.randomUUID();
+        User actor = User.builder().id(userId).role(UserRole.ADMIN).build();
+        when(userRepository.findById(userId)).thenReturn(Optional.of(actor));
+        when(userRepository.getReferenceById(any(UUID.class))).thenAnswer(invocation -> {
+            UUID id = invocation.getArgument(0);
+            return User.builder().id(id).build();
+        });
+
+        auditLogService.recordForAffectedUsers(
+                AuditOperation.UPDATE,
+                "PROFILE",
+                UUID.randomUUID(),
+                List.of(firstAffectedUserId, secondAffectedUserId, firstAffectedUserId),
+                Map.of("Nivel", 1),
+                Map.of("Nivel", 2));
+
+        verify(auditLogRepository, times(2)).save(any(AuditLog.class));
     }
 }
