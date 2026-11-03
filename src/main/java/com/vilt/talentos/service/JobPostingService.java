@@ -6,6 +6,7 @@ import com.vilt.talentos.dto.JobPostingResponse;
 import com.vilt.talentos.dto.JobPostingSkillRequest;
 import com.vilt.talentos.dto.JobPostingSkillResponse;
 import com.vilt.talentos.entity.*;
+import com.vilt.talentos.exception.ConflictException;
 import com.vilt.talentos.exception.ResourceNotFoundException;
 import com.vilt.talentos.exception.UnauthorizedException;
 import com.vilt.talentos.mapper.JobPostingMapper;
@@ -114,6 +115,13 @@ public class JobPostingService {
                     return new ResourceNotFoundException("Vaga não encontrada");
                 });
 
+        if (jobPosting.getStatus() == JobPostingStatus.CANCELLED
+                || jobPosting.getStatus() == JobPostingStatus.FILLED) {
+            throw new ConflictException(
+                    "Vagas canceladas ou preenchidas só podem ter o status alterado."
+            );
+        }
+
         JobPostingResponse oldValue = mapper.toResponse(jobPosting);
 
         Project project = projectRepo.findById(request.projectId())
@@ -199,6 +207,28 @@ public class JobPostingService {
         }
     }
 
+    @Transactional
+    public JobPostingResponse updateStatus(UUID id, JobPostingStatus newStatus) {
+        JobPosting jobPosting = jobPostingRepo.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Vaga não encontrada"));
+
+        JobPostingStatus oldStatus = jobPosting.getStatus();
+
+        jobPosting.setStatus(newStatus);
+        jobPosting.setUpdatedBy(getCurrentUser());
+
+        JobPosting updated = jobPostingRepo.save(jobPosting);
+
+        auditLogService.record(
+                AuditOperation.UPDATE,
+                "JOB_POSTING",
+                updated.getId(),
+                Map.of("status", oldStatus),
+                Map.of("status", updated.getStatus()));
+
+        return mapper.toResponse(updated);
+    }
+
     private void reconcileSkills(JobPosting jobPosting, List<JobPostingSkillRequest> skillRequests) {
         if (skillRequests == null || skillRequests.isEmpty()) {
             jobPosting.getSkills().clear();
@@ -253,6 +283,13 @@ public class JobPostingService {
                     log.warn("Falha ao atualizar status da vaga: Vaga ID '{}' não encontrada.", id);
                     return new ResourceNotFoundException("Vaga não encontrada");
                 });
+
+        if (jobPosting.getStatus() == JobPostingStatus.CANCELLED
+                || jobPosting.getStatus() == JobPostingStatus.FILLED) {
+            throw new ConflictException(
+                    "Vagas canceladas ou preenchidas não podem ser ativadas ou desativadas."
+            );
+        }
 
         Boolean oldActive = jobPosting.getActive();
 

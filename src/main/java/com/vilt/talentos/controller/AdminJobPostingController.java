@@ -3,6 +3,7 @@ package com.vilt.talentos.controller;
 import com.vilt.talentos.dto.JobPostingCandidateMatchResponse;
 import com.vilt.talentos.dto.JobPostingRequest;
 import com.vilt.talentos.dto.JobPostingResponse;
+import com.vilt.talentos.dto.JobPostingStatusRequest;
 import com.vilt.talentos.service.JobPostingService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -74,6 +75,13 @@ public class AdminJobPostingController {
     @Operation(summary = "Ativar vaga")
     public void activate(@PathVariable UUID id) {
         jobPostingService.setActiveStatus(id, true);
+    }
+
+    @PatchMapping("/{id}/status")
+    public JobPostingResponse updateStatus(
+            @PathVariable UUID id,
+            @Valid @RequestBody JobPostingStatusRequest request) {
+        return jobPostingService.updateStatus(id, request.status());
     }
 
     @PatchMapping("/{id}/deactivate")
