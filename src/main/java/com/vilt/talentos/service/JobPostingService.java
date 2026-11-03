@@ -5,6 +5,7 @@ import com.vilt.talentos.dto.JobPostingRequest;
 import com.vilt.talentos.dto.JobPostingResponse;
 import com.vilt.talentos.dto.JobPostingSkillRequest;
 import com.vilt.talentos.entity.*;
+import com.vilt.talentos.exception.ConflictException;
 import com.vilt.talentos.exception.ResourceNotFoundException;
 import com.vilt.talentos.exception.UnauthorizedException;
 import com.vilt.talentos.mapper.JobPostingMapper;
