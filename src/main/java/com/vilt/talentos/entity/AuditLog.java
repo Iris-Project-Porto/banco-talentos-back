@@ -43,6 +43,10 @@ public class AuditLog {
     @JoinColumn(name = "user_id")
     private User user;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_affected_id")
+    private User userAffected;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private AuditOperation operation;
