@@ -56,7 +56,7 @@ public class ResourceEquipmentService {
 
         ResourceEquipment saved = equipmentRepo.save(equipment);
         auditLogService.record(AuditOperation.CREATE, "RESOURCE_EQUIPMENT", saved.getId(),
-                null, equipmentAuditSnapshot(saved));
+                saved.getProfile().getUser().getId(), null, equipmentAuditSnapshot(saved));
         log.info("Equipamento {} criado para o perfil {}", saved.getId(), profileId);
         return saved;
     }
@@ -83,7 +83,7 @@ public class ResourceEquipmentService {
         Map<String, Object> newValue = equipmentAuditSnapshot(saved);
         if (!Objects.equals(oldValue, newValue)) {
             auditLogService.record(AuditOperation.UPDATE, "RESOURCE_EQUIPMENT", saved.getId(),
-                    oldValue, newValue);
+                    saved.getProfile().getUser().getId(), oldValue, newValue);
         }
         log.info("Equipamento {} atualizado no perfil {}", equipmentId, profileId);
         return saved;
@@ -95,7 +95,8 @@ public class ResourceEquipmentService {
                 .orElseThrow(() -> new ResourceNotFoundException("Equipamento não encontrado"));
         Map<String, Object> oldValue = equipmentAuditSnapshot(equipment);
         equipmentRepo.delete(equipment);
-        auditLogService.record(AuditOperation.DELETE, "RESOURCE_EQUIPMENT", equipmentId, oldValue, null);
+        auditLogService.record(AuditOperation.DELETE, "RESOURCE_EQUIPMENT", equipmentId,
+                equipment.getProfile().getUser().getId(), oldValue, null);
         log.info("Equipamento {} removido do perfil {}", equipmentId, profileId);
     }
 
