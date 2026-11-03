@@ -144,6 +144,7 @@ public class JobPostingService {
                 AuditOperation.UPDATE,
                 "JOB_POSTING",
                 updatedJobPosting.getId(),
+                null,
                 jobPostingAuditSnapshot(oldValue),
                 jobPostingAuditSnapshot(newValue));
 
@@ -269,6 +270,7 @@ public class JobPostingService {
                 AuditOperation.UPDATE,
                 "JOB_POSTING",
                 updatedJobPosting.getId(),
+                null,
                 Map.of("Ativa", oldActive),
                 Map.of("Ativa", updatedJobPosting.getActive()));
 
