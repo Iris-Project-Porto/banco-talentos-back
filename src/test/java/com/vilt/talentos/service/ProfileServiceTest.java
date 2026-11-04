@@ -103,11 +103,12 @@ class ProfileServiceTest {
         ArgumentCaptor<Object> oldValue = ArgumentCaptor.forClass(Object.class);
         ArgumentCaptor<Object> newValue = ArgumentCaptor.forClass(Object.class);
         verify(auditLogService).record(
-                eq(AuditOperation.UPDATE), eq("PROFILE"), eq(profileId), oldValue.capture(), newValue.capture());
-        assertEquals("Old area", ((Map<?, ?>) oldValue.getValue()).get("area"));
-        assertEquals(DomainStatus.ACTIVE, ((Map<?, ?>) oldValue.getValue()).get("status"));
-        assertEquals("IT", ((Map<?, ?>) newValue.getValue()).get("area"));
-        assertEquals(DomainStatus.PENDING, ((Map<?, ?>) newValue.getValue()).get("status"));
+                eq(AuditOperation.UPDATE), eq("PROFILE"), eq(profileId), eq(userId),
+                oldValue.capture(), newValue.capture());
+        assertEquals("Old area", ((Map<?, ?>) oldValue.getValue()).get("Área"));
+        assertEquals(DomainStatus.ACTIVE, ((Map<?, ?>) oldValue.getValue()).get("Status"));
+        assertEquals("IT", ((Map<?, ?>) newValue.getValue()).get("Área"));
+        assertEquals(DomainStatus.PENDING, ((Map<?, ?>) newValue.getValue()).get("Status"));
     }
 
     @Test
@@ -145,9 +146,10 @@ class ProfileServiceTest {
         assertEquals(profileId, result.getId());
         ArgumentCaptor<Object> newValue = ArgumentCaptor.forClass(Object.class);
         verify(auditLogService).record(
-                eq(AuditOperation.CREATE), eq("PROFILE"), eq(profileId), isNull(), newValue.capture());
-        assertEquals("IT", ((Map<?, ?>) newValue.getValue()).get("area"));
-        assertEquals(ExperienceLevel.PLENO.name(), ((Map<?, ?>) newValue.getValue()).get("level"));
+                eq(AuditOperation.CREATE), eq("PROFILE"), eq(profileId), eq(userId),
+                isNull(), newValue.capture());
+        assertEquals("IT", ((Map<?, ?>) newValue.getValue()).get("Área"));
+        assertEquals(ExperienceLevel.PLENO.name(), ((Map<?, ?>) newValue.getValue()).get("Nível"));
     }
 
     @Test
@@ -156,6 +158,7 @@ class ProfileServiceTest {
         UUID profileId = UUID.randomUUID();
         Profile profile = Profile.builder()
                 .id(profileId)
+                .user(User.builder().id(userId).build())
                 .area("Old area")
                 .phone("111")
                 .skills(new java.util.ArrayList<>())
@@ -172,11 +175,12 @@ class ProfileServiceTest {
         ArgumentCaptor<Object> oldValue = ArgumentCaptor.forClass(Object.class);
         ArgumentCaptor<Object> newValue = ArgumentCaptor.forClass(Object.class);
         verify(auditLogService).record(
-                eq(AuditOperation.UPDATE), eq("PROFILE"), eq(profileId), oldValue.capture(), newValue.capture());
-        assertEquals("Old area", ((Map<?, ?>) oldValue.getValue()).get("area"));
-        assertEquals("111", ((Map<?, ?>) oldValue.getValue()).get("phone"));
-        assertEquals("New area", ((Map<?, ?>) newValue.getValue()).get("area"));
-        assertEquals("222", ((Map<?, ?>) newValue.getValue()).get("phone"));
+                eq(AuditOperation.UPDATE), eq("PROFILE"), eq(profileId), eq(userId),
+                oldValue.capture(), newValue.capture());
+        assertEquals("Old area", ((Map<?, ?>) oldValue.getValue()).get("Área"));
+        assertEquals("111", ((Map<?, ?>) oldValue.getValue()).get("Telefone"));
+        assertEquals("New area", ((Map<?, ?>) newValue.getValue()).get("Área"));
+        assertEquals("222", ((Map<?, ?>) newValue.getValue()).get("Telefone"));
     }
 
 
