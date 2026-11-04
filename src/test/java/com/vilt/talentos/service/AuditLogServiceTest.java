@@ -159,4 +159,27 @@ class AuditLogServiceTest {
 
         verify(auditLogRepository, times(2)).save(any(AuditLog.class));
     }
+
+    @Test
+    void recordUserChangeSetsTheAffectedUserAndAllowsAnonymousActor() {
+        SecurityContextHolder.clearContext();
+        UUID affectedUserId = UUID.randomUUID();
+        User affectedUser = User.builder().id(affectedUserId).build();
+        when(userRepository.getReferenceById(affectedUserId)).thenReturn(affectedUser);
+
+        auditLogService.recordUserChange(
+                AuditOperation.UPDATE,
+                affectedUserId,
+                null,
+                Map.of("Senha", "alterada"));
+
+        var auditLogCaptor = org.mockito.ArgumentCaptor.forClass(AuditLog.class);
+        verify(auditLogRepository).save(auditLogCaptor.capture());
+        AuditLog auditLog = auditLogCaptor.getValue();
+        assertEquals("USER", auditLog.getEntityType());
+        assertEquals(affectedUserId, auditLog.getEntityId());
+        assertEquals(affectedUser, auditLog.getUserAffected());
+        org.junit.jupiter.api.Assertions.assertNull(auditLog.getUser());
+        assertEquals(AuditOperation.UPDATE, auditLog.getOperation());
+    }
 }

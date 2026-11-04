@@ -76,7 +76,7 @@ public class ResourceService {
                 AuditOperation.CREATE,
                 user.getId(),
                 null,
-                Map.of("usuário", "criado", "senha", "alterada"));
+                Map.of("Usuário", "criado", "Senha", "alterada"));
 
         Profile profile = Profile.builder()
                 .user(user)
@@ -156,7 +156,7 @@ public class ResourceService {
                 AuditOperation.DELETE,
                 user.getId(),
                 null,
-                Map.of("usuário", "excluído"));
+                Map.of("Usuário", "excluído"));
         userReferenceCleanupRepo.deleteReferences(user.getId());
         profileRepo.delete(profile);
         userRepo.delete(user);
