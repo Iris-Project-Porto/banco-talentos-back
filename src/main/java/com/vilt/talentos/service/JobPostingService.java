@@ -181,7 +181,7 @@ public class JobPostingService {
         putIfNotNull(snapshot, "Urgente", jobPosting.isUrgent());
         putIfNotNull(snapshot, "Ativa", jobPosting.active());
         if (jobPosting.skills() != null) {
-            snapshot.put("Competências", jobPosting.skills().stream()
+            snapshot.put("Skills", jobPosting.skills().stream()
                     .map(this::jobPostingSkillAuditSnapshot)
                     .toList());
         }
@@ -194,7 +194,7 @@ public class JobPostingService {
 
     private Map<String, Object> jobPostingSkillAuditSnapshot(JobPostingSkillResponse skill) {
         Map<String, Object> snapshot = new LinkedHashMap<>();
-        snapshot.put("Competência", skill.name());
+        snapshot.put("Skill", skill.name());
         snapshot.put("Tipo", skill.type());
         snapshot.put("Nível mínimo", skill.minLevel());
         snapshot.put("Descrição", skill.description());
