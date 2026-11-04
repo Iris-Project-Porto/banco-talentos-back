@@ -14,6 +14,7 @@ import com.vilt.talentos.repository.ProfileRepository;
 import com.vilt.talentos.repository.UserRepository;
 import com.vilt.talentos.security.JwtService;
 import com.vilt.talentos.config.AppProperties;
+import com.vilt.talentos.entity.AuditOperation;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -39,6 +40,7 @@ public class AuthService {
     private final EmailService emailService;
     private final AppProperties appProperties;
     private final UserMapper userMapper;
+    private final AuditLogService auditLogService;
 
     public AuthResponse login(AuthRequest req) {
         String email = normalizeAndValidateEmail(req.email());
@@ -176,6 +178,11 @@ public class AuthService {
         user.setGroup(group);
 
         userRepo.save(user);
+        auditLogService.recordUserChange(
+                AuditOperation.CREATE,
+                user.getId(),
+                null,
+                Map.of("Usuário", "criado", "Senha", "alterada"));
         log.info("Usuário '{}' registrado no banco de dados com ID: {}. Enviando e-mail de verificação.", email, user.getId());
 
         sendVerificationEmail(user, verificationCode);
@@ -205,6 +212,11 @@ public class AuthService {
             user.setVerificationCode(null);
             user.setVerificationCodeExpiresAt(null);
             userRepo.save(user);
+            auditLogService.recordUserChange(
+                    AuditOperation.UPDATE,
+                    user.getId(),
+                    Map.of("E-mail", "Não verificado"),
+                    Map.of("E-mail", "Verificado"));
 
             log.info("E-mail '{}' verificado com sucesso.", email);
 
@@ -334,6 +346,11 @@ public class AuthService {
         user.setResetTokenExpires(null);
         invalidateAllSessions(user);
         userRepo.save(user);
+        auditLogService.recordUserChange(
+                AuditOperation.UPDATE,
+                user.getId(),
+                null,
+                Map.of("Senha", "alterada"));
 
         log.info("Senha redefinida com sucesso para o usuário: {}", req.email());
     }

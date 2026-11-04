@@ -371,6 +371,9 @@ public class ProfileService {
         applyResourceStatusAutomation(profile, wasAllocatedToProject);
 
         if (req.groupId() != null) {
+            UUID oldGroupId = profile.getUser().getGroup() == null
+                    ? null
+                    : profile.getUser().getGroup().getId();
             var group = groupRepo.findById(req.groupId())
                     .orElseThrow(() -> {
                         log.warn("Tentativa de associar grupo ao perfil ID: {} falhou: Grupo não encontrado.", profileId);
@@ -378,6 +381,16 @@ public class ProfileService {
                     });
             profile.getUser().setGroup(group);
             userRepo.save(profile.getUser());
+
+            if (!Objects.equals(oldGroupId, group.getId())) {
+                Map<String, Object> oldGroupValue = new LinkedHashMap<>();
+                oldGroupValue.put("Grupo", oldGroupId);
+                auditLogService.recordUserChange(
+                        AuditOperation.UPDATE,
+                        profile.getUser().getId(),
+                        oldGroupValue,
+                        Map.of("Grupo", group.getId()));
+            }
         }
 
         // Reconciliação de skills HARD e SOFT

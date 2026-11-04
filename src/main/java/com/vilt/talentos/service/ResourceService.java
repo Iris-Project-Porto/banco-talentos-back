@@ -20,6 +20,7 @@ import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -40,6 +41,7 @@ public class ResourceService {
     private final PasswordEncoder passwordEncoder;
     private final EmailService emailService;
     private final AppProperties appProperties;
+    private final AuditLogService auditLogService;
 
     @Transactional
     public CreateResourceResponse createByAdmin(CreateResourceRequest request) {
@@ -70,6 +72,11 @@ public class ResourceService {
                 .group(group)
                 .build();
         userRepo.save(user);
+        auditLogService.recordUserChange(
+                AuditOperation.CREATE,
+                user.getId(),
+                null,
+                Map.of("usuário", "criado", "senha", "alterada"));
 
         Profile profile = Profile.builder()
                 .user(user)
@@ -145,6 +152,11 @@ public class ResourceService {
             throw new ResourceNotFoundException("Recurso não encontrado.");
         }
 
+        auditLogService.recordUserChange(
+                AuditOperation.DELETE,
+                user.getId(),
+                null,
+                Map.of("usuário", "excluído"));
         userReferenceCleanupRepo.deleteReferences(user.getId());
         profileRepo.delete(profile);
         userRepo.delete(user);
