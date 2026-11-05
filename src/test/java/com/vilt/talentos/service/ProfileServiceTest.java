@@ -217,7 +217,8 @@ class ProfileServiceTest {
         );
 
         when(profileRepo.findById(profileId)).thenReturn(Optional.of(profile));
-        when(skillRepo.findByName("TYPESCRIPT")).thenReturn(Optional.empty());
+        when(skillRepo.findByName("TYPESCRIPT")).thenReturn(Optional.of(
+                Skill.builder().name("TYPESCRIPT").type(SkillType.HARD).build()));
 
         assertThrows(BadRequestException.class, () -> profileService.adminUpdate(profileId, req));
 
@@ -256,6 +257,30 @@ class ProfileServiceTest {
 
         assertEquals(SkillType.SOFT, skill.getType());
         assertEquals(6, profileSkill.getProficiencyLevel());
+        verify(profileRepo, never()).save(any(Profile.class));
+    }
+
+    @Test
+    void updateMyProfile_rejectsSkillThatDoesNotExistInCatalog() {
+        UUID userId = UUID.randomUUID();
+        Profile profile = Profile.builder()
+                .user(User.builder().id(userId).build())
+                .skills(new java.util.ArrayList<>())
+                .build();
+        ProfileSelfUpdateRequest request = new ProfileSelfUpdateRequest(
+                null, null, null, null, null, null, null, null,
+                null, null, null, null, null,
+                null,
+                java.util.List.of(new SkillEntry("COMUNICACAO", 9)));
+        when(profileRepo.findByUserId(userId)).thenReturn(Optional.of(profile));
+        when(skillRepo.findByName("COMUNICACAO")).thenReturn(Optional.empty());
+
+        BadRequestException exception = assertThrows(
+                BadRequestException.class,
+                () -> profileService.updateMyProfile(userId, request));
+
+        assertTrue(exception.getMessage().contains("não existe no catálogo"));
+        verify(skillRepo, never()).save(any(Skill.class));
         verify(profileRepo, never()).save(any(Profile.class));
     }
 
