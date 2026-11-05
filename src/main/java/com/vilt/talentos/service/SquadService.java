@@ -86,6 +86,7 @@ public class SquadService {
                 });
     }
 
+    @Transactional
     public SquadResponse create(SquadRequest request) {
         log.info("Iniciando criação de uma nova squad.");
 
@@ -98,9 +99,12 @@ public class SquadService {
         Squad savedSquad = squadRepo.save(squad);
         log.info("Squad criada com sucesso. ID gerado: {}", savedSquad.getId());
 
+        syncRecursos(savedSquad, request.recursoIds());
+
         return mapper.toResponse(savedSquad);
     }
 
+    @Transactional
     public SquadResponse update(UUID id, SquadRequest request) {
         log.info("Iniciando atualização da squad ID: {}", id);
 
@@ -116,7 +120,21 @@ public class SquadService {
         Squad updatedSquad = squadRepo.save(squad);
         log.info("Squad ID: {} atualizada com sucesso.", id);
 
+        syncRecursos(updatedSquad, request.recursoIds());
+
         return mapper.toResponse(updatedSquad);
+    }
+
+    private void syncRecursos(Squad squad, List<UUID> recursoIds) {
+        if (recursoIds == null) return;
+        profileRepo.clearAllocationSquad(squad.getId());
+        if (!recursoIds.isEmpty()) {
+            List<Profile> profiles = profileRepo.findAllById(recursoIds);
+            for (Profile p : profiles) {
+                p.setAllocationSquad(squad);
+            }
+            profileRepo.saveAll(profiles);
+        }
     }
 
     public void setActiveStatus(UUID id, boolean active) {
