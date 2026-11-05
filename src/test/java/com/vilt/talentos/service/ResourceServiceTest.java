@@ -3,6 +3,7 @@ package com.vilt.talentos.service;
 import com.vilt.talentos.config.AppProperties;
 import com.vilt.talentos.dto.CreateResourceRequest;
 import com.vilt.talentos.entity.DomainStatus;
+import com.vilt.talentos.entity.AuditOperation;
 import com.vilt.talentos.entity.Group;
 import com.vilt.talentos.entity.Profile;
 import com.vilt.talentos.entity.RegistrationStatus;
@@ -22,6 +23,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.Optional;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -48,6 +50,8 @@ class ResourceServiceTest {
     private EmailService emailService;
     @Mock
     private AppProperties appProperties;
+    @Mock
+    private AuditLogService auditLogService;
 
     @InjectMocks
     private ResourceService resourceService;
@@ -89,6 +93,11 @@ class ResourceServiceTest {
         assertEquals(UserRole.RESOURCE, savedUser.getRole());
         assertEquals(DomainStatus.ACTIVE, savedUser.getStatus());
         assertTrue(savedUser.isEmailVerified());
+        verify(auditLogService).recordUserChange(
+                AuditOperation.CREATE,
+                savedUser.getId(),
+                null,
+                Map.of("Usuário", "criado", "Senha", "alterada"));
 
         ArgumentCaptor<Profile> profileCaptor = ArgumentCaptor.forClass(Profile.class);
         verify(profileRepo).save(profileCaptor.capture());
