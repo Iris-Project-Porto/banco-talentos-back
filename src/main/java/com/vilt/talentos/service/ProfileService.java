@@ -493,7 +493,7 @@ public class ProfileService {
                 Integer level = entry.proficiencyLevel();
                 
                 var skill = skillRepo.findByName(name)
-                        .orElseGet(() -> skillRepo.save(Skill.builder().name(name).type(SkillType.HARD).build()));
+                        .orElseThrow(() -> skillNotFound(entry.name()));
 
                 if (skill.getType() != SkillType.HARD) {
                     throw skillTypeMismatch(entry.name(), skill.getType(), SkillType.HARD);
@@ -514,7 +514,7 @@ public class ProfileService {
                 Integer level = entry.proficiencyLevel();
                 
                 var skill = skillRepo.findByName(name)
-                        .orElseGet(() -> skillRepo.save(Skill.builder().name(name).type(SkillType.SOFT).build()));
+                        .orElseThrow(() -> skillNotFound(entry.name()));
 
                 if (skill.getType() != SkillType.SOFT) {
                     throw skillTypeMismatch(entry.name(), skill.getType(), SkillType.SOFT);
@@ -566,12 +566,17 @@ public class ProfileService {
             if (existingType == null) {
                 existingType = skillRepo.findByName(requested.getKey())
                         .map(Skill::getType)
-                        .orElse(null);
+                        .orElseThrow(() -> skillNotFound(requested.getValue().name()));
             }
             if (existingType != null && existingType != expectedType) {
                 throw skillTypeMismatch(requested.getValue().name(), existingType, expectedType);
             }
         }
+    }
+
+    private BadRequestException skillNotFound(String skillName) {
+        return new BadRequestException(
+                "A skill '" + skillName + "' não existe no catálogo. Cadastre-a antes de adicioná-la ao perfil.");
     }
 
     private BadRequestException skillTypeMismatch(String skillName, SkillType actualType, SkillType expectedType) {
