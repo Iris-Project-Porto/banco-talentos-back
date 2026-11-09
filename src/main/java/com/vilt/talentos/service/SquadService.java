@@ -8,15 +8,18 @@ import com.vilt.talentos.exception.UnauthorizedException;
 import com.vilt.talentos.mapper.SquadMapper;
 import com.vilt.talentos.repository.*;
 
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 @Service
@@ -29,6 +32,7 @@ public class SquadService {
     private final JobPostingRepository jobPostingRepo;
     private final UserRepository userRepo;
     private final SquadMapper mapper;
+    private final AuditLogService auditLogService;
 
     public Page<SquadResponse> findAllActive(String search, Pageable pageable) {
         Page<Squad> squadPage;
@@ -86,6 +90,7 @@ public class SquadService {
                 });
     }
 
+    @Transactional
     public SquadResponse create(SquadRequest request) {
         log.info("Iniciando criação de uma nova squad.");
 
@@ -97,10 +102,17 @@ public class SquadService {
 
         Squad savedSquad = squadRepo.save(squad);
         log.info("Squad criada com sucesso. ID gerado: {}", savedSquad.getId());
+        auditLogService.record(
+                AuditOperation.CREATE,
+                "SQUAD",
+                savedSquad.getId(),
+                null,
+                squadAuditSnapshot(savedSquad));
 
         return mapper.toResponse(savedSquad);
     }
 
+    @Transactional
     public SquadResponse update(UUID id, SquadRequest request) {
         log.info("Iniciando atualização da squad ID: {}", id);
 
@@ -109,16 +121,27 @@ public class SquadService {
                     log.warn("Falha ao atualizar: Squad ID '{}' não encontrada.", id);
                     return new ResourceNotFoundException("Squad não encontrada");
                 });
+        Map<String, Object> oldValue = squadAuditSnapshot(squad);
 
         mapper.updateEntity(request, squad);
         squad.setUpdatedBy(getCurrentUser());
 
         Squad updatedSquad = squadRepo.save(squad);
         log.info("Squad ID: {} atualizada com sucesso.", id);
+        Map<String, Object> newValue = squadAuditSnapshot(updatedSquad);
+        if (!Objects.equals(oldValue, newValue)) {
+            auditLogService.record(
+                    AuditOperation.UPDATE,
+                    "SQUAD",
+                    updatedSquad.getId(),
+                    oldValue,
+                    newValue);
+        }
 
         return mapper.toResponse(updatedSquad);
     }
 
+    @Transactional
     public void setActiveStatus(UUID id, boolean active) {
         log.info("Alterando status da squad ID: {} para ativo={}", id, active);
 
@@ -127,12 +150,23 @@ public class SquadService {
                     log.warn("Falha ao alterar status: Squad ID '{}' não encontrada.", id);
                     return new ResourceNotFoundException("Squad não encontrada");
                 });
+        Map<String, Object> oldValue = squadAuditSnapshot(squad);
+
+        if (squad.isActive() == active) {
+            return;
+        }
 
         squad.setActive(active);
         squad.setUpdatedBy(getCurrentUser());
         squadRepo.save(squad);
 
         log.info("Status da squad ID: {} atualizado com sucesso.", id);
+        auditLogService.record(
+                AuditOperation.UPDATE,
+                "SQUAD",
+                squad.getId(),
+                oldValue,
+                squadAuditSnapshot(squad));
     }
 
     private User getCurrentUser() {
@@ -152,8 +186,28 @@ public class SquadService {
                     log.warn("Falha ao deletar: Squad ID '{}' não encontrada.", id);
                     return new ResourceNotFoundException("Squad não encontrada");
                 });
+        Map<String, Object> oldValue = squadAuditSnapshot(squad);
         profileRepo.clearAllocationSquad(id);
         jobPostingRepo.clearSquad(id);
         squadRepo.delete(squad);
+        auditLogService.record(
+                AuditOperation.DELETE,
+                "SQUAD",
+                id,
+                oldValue,
+                null);
+    }
+
+    private Map<String, Object> squadAuditSnapshot(Squad squad) {
+        Map<String, Object> snapshot = new LinkedHashMap<>();
+        snapshot.put("ID", squad.getId());
+        snapshot.put("Nome", squad.getName());
+        snapshot.put("Descrição", squad.getDescription());
+        snapshot.put("Coordenador Porto", squad.getPortoCoordinator());
+        snapshot.put("Gerente de Projeto", squad.getProjectManager());
+        snapshot.put("Projeto", squad.getProject() == null ? null : squad.getProject().getName());
+        snapshot.put("ID do projeto", squad.getProject() == null ? null : squad.getProject().getId());
+        snapshot.put("Ativa", squad.isActive());
+        return snapshot;
     }
 }
