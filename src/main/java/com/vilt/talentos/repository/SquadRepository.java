@@ -1,5 +1,6 @@
 package com.vilt.talentos.repository;
 
+import com.vilt.talentos.dto.AuditEntityContext;
 import com.vilt.talentos.entity.Squad;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -11,10 +12,15 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Collection;
 import java.util.UUID;
 
 @Repository
 public interface SquadRepository extends JpaRepository<Squad, UUID> {
+    @Query("select new com.vilt.talentos.dto.AuditEntityContext(s.id, s.name) "
+            + "from Squad s where s.id in :ids")
+    List<AuditEntityContext> findAuditContextsByIdIn(@Param("ids") Collection<UUID> ids);
+
     @EntityGraph(attributePaths = {"project"})
     Page<Squad> findByActive(boolean active, Pageable pageable);
 

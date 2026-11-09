@@ -2,6 +2,7 @@ package com.vilt.talentos.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.vilt.talentos.dto.AuditEntityContext;
 import com.vilt.talentos.dto.AuditLogResponse;
 import com.vilt.talentos.entity.AuditLog;
 import com.vilt.talentos.entity.AuditOperation;
@@ -10,7 +11,11 @@ import com.vilt.talentos.entity.UserRole;
 import com.vilt.talentos.exception.UnauthorizedException;
 import com.vilt.talentos.exception.ResourceNotFoundException;
 import com.vilt.talentos.repository.AuditLogRepository;
+import com.vilt.talentos.repository.JobPostingRepository;
 import com.vilt.talentos.repository.ProfileRepository;
+import com.vilt.talentos.repository.ProjectRepository;
+import com.vilt.talentos.repository.ResourceEquipmentRepository;
+import com.vilt.talentos.repository.SquadRepository;
 import com.vilt.talentos.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
@@ -22,15 +27,34 @@ import java.util.List;
 import java.util.UUID;
 import java.util.Collection;
 import java.util.LinkedHashSet;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
 public class AuditLogService {
 
+    private static final Map<String, List<String>> SNAPSHOT_ENTITY_NAME_KEYS = Map.of(
+            "PROJECT", List.of("Nome"),
+            "SQUAD", List.of("Nome"),
+            "JOB_POSTING", List.of("Título", "Código da vaga"),
+            "PROFILE_SKILL", List.of("Skill"),
+            "RESOURCE_EQUIPMENT", List.of(
+                    "Nome do dispositivo",
+                    "Número do patrimônio",
+                    "Etiqueta",
+                    "Marca/Sistema operacional",
+                    "Processador"));
+
     private final AuditLogRepository auditLogRepository;
     private final ProfileRepository profileRepository;
     private final UserRepository userRepository;
     private final ObjectMapper objectMapper;
+    private final ProjectRepository projectRepository;
+    private final SquadRepository squadRepository;
+    private final JobPostingRepository jobPostingRepository;
+    private final ResourceEquipmentRepository resourceEquipmentRepository;
 
     @Transactional(readOnly = true)
     public List<AuditLogResponse> listForCurrentUser() {
@@ -50,7 +74,12 @@ public class AuditLogService {
             auditLogs = auditLogRepository.findByUserAffectedIdOrderByCreatedAtDesc(currentUser.getId());
         }
 
-        return auditLogs.stream().map(AuditLogResponse::summary).toList();
+        Map<String, Map<UUID, AuditEntityContext>> entityContexts = loadEntityContexts(auditLogs);
+        return auditLogs.stream()
+                .map(auditLog -> AuditLogResponse.summary(
+                        auditLog,
+                        resolveEntityName(auditLog, entityContexts)))
+                .toList();
     }
 
     @Transactional(readOnly = true)
@@ -65,7 +94,111 @@ public class AuditLogService {
             throw new ResourceNotFoundException("Registro de auditoria não encontrado");
         }
 
-        return AuditLogResponse.from(auditLog);
+        Map<String, Map<UUID, AuditEntityContext>> entityContexts = loadEntityContexts(List.of(auditLog));
+        return AuditLogResponse.from(auditLog, resolveEntityName(auditLog, entityContexts));
+    }
+
+    private Map<String, Map<UUID, AuditEntityContext>> loadEntityContexts(List<AuditLog> auditLogs) {
+        Map<String, Map<UUID, AuditEntityContext>> contexts = new LinkedHashMap<>();
+        Map<String, Set<UUID>> idsByType = new LinkedHashMap<>();
+        for (AuditLog auditLog : auditLogs) {
+            if (auditLog.getEntityType() == null || auditLog.getEntityId() == null) {
+                continue;
+            }
+
+            idsByType.computeIfAbsent(auditLog.getEntityType(), type -> new LinkedHashSet<>())
+                    .add(auditLog.getEntityId());
+        }
+
+        for (Map.Entry<String, Set<UUID>> entry : idsByType.entrySet()) {
+            List<AuditEntityContext> entityContexts = findEntityContexts(
+                    entry.getKey(), List.copyOf(entry.getValue()));
+            if (entityContexts.isEmpty()) {
+                continue;
+            }
+
+            Map<UUID, AuditEntityContext> contextsById = new LinkedHashMap<>();
+            for (AuditEntityContext context : entityContexts) {
+                contextsById.putIfAbsent(context.entityId(), context);
+            }
+            contexts.put(entry.getKey(), contextsById);
+        }
+
+        return contexts;
+    }
+
+    private List<AuditEntityContext> findEntityContexts(String entityType, Collection<UUID> ids) {
+        return switch (entityType) {
+            case "PROJECT" -> projectRepository.findAuditContextsByIdIn(ids);
+            case "SQUAD" -> squadRepository.findAuditContextsByIdIn(ids);
+            case "JOB_POSTING" -> jobPostingRepository.findAuditContextsByIdIn(ids);
+            case "PROFILE" -> profileRepository.findAuditContextsByProfileIdIn(ids);
+            case "PROFILE_SKILL" -> profileRepository.findAuditContextsByProfileSkillIdIn(ids);
+            case "RESOURCE_EQUIPMENT" -> resourceEquipmentRepository.findAuditContextsByIdIn(ids);
+            default -> List.of();
+        };
+    }
+
+    private String resolveEntityName(
+            AuditLog auditLog,
+            Map<String, Map<UUID, AuditEntityContext>> contexts) {
+        Map<UUID, AuditEntityContext> typeContexts = contexts.get(auditLog.getEntityType());
+        AuditEntityContext context = typeContexts == null || auditLog.getEntityId() == null
+                ? null
+                : typeContexts.get(auditLog.getEntityId());
+        String entityName = context == null ? null : context.entityName();
+        if (isBlank(entityName)) {
+            entityName = snapshotEntityName(auditLog);
+        }
+        return isBlank(entityName) ? entityTypeFallback(auditLog.getEntityType()) : entityName;
+    }
+
+    private String snapshotEntityName(AuditLog auditLog) {
+        if ("PROFILE".equals(auditLog.getEntityType())) {
+            return affectedUserName(auditLog);
+        }
+        List<String> keys = auditLog.getEntityType() == null
+                ? List.of()
+                : SNAPSHOT_ENTITY_NAME_KEYS.getOrDefault(auditLog.getEntityType(), List.of());
+        return snapshotValue(auditLog.getOldValue(), auditLog.getNewValue(), keys.toArray(String[]::new));
+    }
+
+    private String snapshotValue(JsonNode oldValue, JsonNode newValue, String... keys) {
+        for (JsonNode snapshot : new JsonNode[]{oldValue, newValue}) {
+            if (snapshot == null) {
+                continue;
+            }
+            for (String key : keys) {
+                JsonNode value = snapshot.path(key);
+                if (value.isTextual() && !isBlank(value.asText())) {
+                    return value.asText();
+                }
+            }
+        }
+        return null;
+    }
+
+    private String affectedUserName(AuditLog auditLog) {
+        if (auditLog.getUserAffected() != null && !isBlank(auditLog.getUserAffected().getName())) {
+            return auditLog.getUserAffected().getName();
+        }
+        return snapshotValue(auditLog.getOldValue(), auditLog.getNewValue(), "Nome do usuário");
+    }
+
+    private String entityTypeFallback(String entityType) {
+        return switch (entityType == null ? "" : entityType) {
+            case "PROJECT" -> "Projeto (contexto indisponível)";
+            case "SQUAD" -> "Squad (contexto indisponível)";
+            case "JOB_POSTING" -> "Vaga (contexto indisponível)";
+            case "PROFILE" -> "Perfil (contexto indisponível)";
+            case "PROFILE_SKILL" -> "Skill (contexto indisponível)";
+            case "RESOURCE_EQUIPMENT" -> "Equipamento (contexto indisponível)";
+            default -> "Entidade (contexto indisponível)";
+        };
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.isBlank();
     }
 
     @Transactional
