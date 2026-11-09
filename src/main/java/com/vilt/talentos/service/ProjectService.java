@@ -2,6 +2,7 @@ package com.vilt.talentos.service;
 
 import com.vilt.talentos.dto.ProjectRequest;
 import com.vilt.talentos.dto.ProjectResponse;
+import com.vilt.talentos.entity.AuditOperation;
 import com.vilt.talentos.entity.Project;
 import com.vilt.talentos.entity.Squad;
 import com.vilt.talentos.entity.User;
@@ -23,7 +24,10 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 @Service
@@ -38,6 +42,7 @@ public class ProjectService {
     private final SquadRepository squadRepo;
     private final ProjectMapper mapper;
     private final SquadMapper squadMapper;
+    private final AuditLogService auditLogService;
 
     public Page<ProjectResponse> findAllActive(Pageable pageable) {
         Page<ProjectResponse> page = projectRepo.findByActive(true, pageable)
@@ -78,13 +83,25 @@ public class ProjectService {
 
         Project savedProject = projectRepo.save(project);
         log.info("Projeto criado com sucesso. ID gerado: {}", savedProject.getId());
+        auditLogService.record(
+                AuditOperation.CREATE,
+                "PROJECT",
+                savedProject.getId(),
+                null,
+                projectAuditSnapshot(savedProject));
 
         if (request.squad() != null) {
             Squad newSquad = squadMapper.toEntity(request.squad());
             newSquad.setProject(savedProject);
             newSquad.setCreatedBy(currentUser);
-            squadRepo.save(newSquad);
+            Squad savedSquad = squadRepo.save(newSquad);
             log.info("Squad criada e vinculada ao projeto com sucesso.");
+            auditLogService.record(
+                    AuditOperation.CREATE,
+                    "SQUAD",
+                    savedSquad.getId(),
+                    null,
+                    squadAuditSnapshot(savedSquad));
         }
 
         if (request.squadIds() != null) {
@@ -105,6 +122,7 @@ public class ProjectService {
                     log.warn("Falha ao atualizar: Projeto ID '{}' não encontrado.", id);
                     return new ResourceNotFoundException("Projeto não encontrado");
                 });
+        Map<String, Object> oldValue = projectAuditSnapshot(project);
 
         mapper.updateEntity(request, project);
         project.setUpdatedBy(getCurrentUser());
@@ -117,12 +135,28 @@ public class ProjectService {
             Squad newSquad = squadMapper.toEntity(request.squad());
             newSquad.setProject(updatedProject);
             newSquad.setCreatedBy(currentUser);
-            squadRepo.save(newSquad);
+            Squad savedSquad = squadRepo.save(newSquad);
             log.info("Nova Squad criada e vinculada ao projeto ID: {} durante atualização.", id);
+            auditLogService.record(
+                    AuditOperation.CREATE,
+                    "SQUAD",
+                    savedSquad.getId(),
+                    null,
+                    squadAuditSnapshot(savedSquad));
         }
 
         if (request.squadIds() != null) {
             reconcileSquads(updatedProject, request.squadIds(), getCurrentUser());
+        }
+
+        Map<String, Object> newValue = projectAuditSnapshot(updatedProject);
+        if (!Objects.equals(oldValue, newValue)) {
+            auditLogService.record(
+                    AuditOperation.UPDATE,
+                    "PROJECT",
+                    updatedProject.getId(),
+                    oldValue,
+                    newValue);
         }
 
         return projectRepo.findWithSquadsById(updatedProject.getId())
@@ -130,6 +164,7 @@ public class ProjectService {
                 .orElseThrow();
     }
 
+    @Transactional
     public void setActiveStatus(UUID id, boolean active) {
         log.info("Alterando status do projeto ID: {} para ativo={}", id, active);
 
@@ -139,10 +174,20 @@ public class ProjectService {
                     return new ResourceNotFoundException("Projeto não encontrado");
                 });
 
+        if (project.isActive() == active) {
+            return;
+        }
+
         project.setActive(active);
         project.setUpdatedBy(getCurrentUser());
         projectRepo.save(project);
         log.info("Status do projeto ID: {} atualizado com sucesso.", id);
+        auditLogService.record(
+                AuditOperation.UPDATE,
+                "PROJECT",
+                project.getId(),
+                Map.of("Ativo", !active),
+                Map.of("Ativo", active));
     }
 
     private void reconcileSquads(Project project, List<UUID> desiredIds, User currentUser) {
@@ -150,19 +195,26 @@ public class ProjectService {
                 .map(Squad::getId)
                 .toList();
 
-        // Desvincula squads que não estão mais na lista desejada (houve ajuda da IA)
+        // Desvincula squads que não estão mais na lista desejada.
         for (UUID squadId : currentIds) {
             if (!desiredIds.contains(squadId)) {
                 Squad squad = squadRepo.findById(squadId)
                         .orElseThrow(() -> new ResourceNotFoundException("Squad não encontrada: " + squadId));
+                Map<String, Object> oldValue = squadAuditSnapshot(squad);
                 squad.setProject(null);
                 squad.setUpdatedBy(currentUser);
                 squadRepo.save(squad);
                 log.info("Squad ID: {} desvinculada do projeto ID: {}.", squadId, project.getId());
+                auditLogService.record(
+                        AuditOperation.UPDATE,
+                        "SQUAD",
+                        squad.getId(),
+                        oldValue,
+                        squadAuditSnapshot(squad));
             }
         }
 
-        // Vincula squads novas que ainda não estão associadas (houve ajuda da IA)
+        // Vincula squads novas que ainda não estão associadas.
         for (UUID squadId : desiredIds) {
             if (!currentIds.contains(squadId)) {
                 Squad squad = squadRepo.findById(squadId)
@@ -177,10 +229,17 @@ public class ProjectService {
                     throw new ConflictException("A squad já está vinculada a outro projeto: " + squadId);
                 }
 
+                Map<String, Object> oldValue = squadAuditSnapshot(squad);
                 squad.setProject(project);
                 squad.setUpdatedBy(currentUser);
                 squadRepo.save(squad);
                 log.info("Squad ID: {} vinculada ao projeto ID: {}.", squadId, project.getId());
+                auditLogService.record(
+                        AuditOperation.UPDATE,
+                        "SQUAD",
+                        squad.getId(),
+                        oldValue,
+                        squadAuditSnapshot(squad));
             }
         }
     }
@@ -202,9 +261,38 @@ public class ProjectService {
                     log.warn("Falha ao deletar: Projeto ID '{}' não encontrado.", id);
                     return new ResourceNotFoundException("Projeto não encontrado");
                 });
+        Map<String, Object> oldValue = projectAuditSnapshot(project);
         jobPostingRepo.clearProject(id);
         profileRepo.clearAllocationProject(id);
         squadRepo.clearProject(id);
         projectRepo.delete(project);
+        auditLogService.record(
+                AuditOperation.DELETE,
+                "PROJECT",
+                id,
+                oldValue,
+                null);
+    }
+
+    private Map<String, Object> projectAuditSnapshot(Project project) {
+        Map<String, Object> snapshot = new LinkedHashMap<>();
+        snapshot.put("ID", project.getId());
+        snapshot.put("Nome", project.getName());
+        snapshot.put("Descrição", project.getDescription());
+        snapshot.put("Ativo", project.isActive());
+        return snapshot;
+    }
+
+    private Map<String, Object> squadAuditSnapshot(Squad squad) {
+        Map<String, Object> snapshot = new LinkedHashMap<>();
+        snapshot.put("ID", squad.getId());
+        snapshot.put("Nome", squad.getName());
+        snapshot.put("Descrição", squad.getDescription());
+        snapshot.put("Coordenador Porto", squad.getPortoCoordinator());
+        snapshot.put("Gerente de Projeto", squad.getProjectManager());
+        snapshot.put("Projeto", squad.getProject() == null ? null : squad.getProject().getName());
+        snapshot.put("ID do projeto", squad.getProject() == null ? null : squad.getProject().getId());
+        snapshot.put("Ativa", squad.isActive());
+        return snapshot;
     }
 }
