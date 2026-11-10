@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
 import java.util.List;
@@ -37,6 +38,10 @@ public interface ProfileRepository extends JpaRepository<Profile, UUID>, JpaSpec
 
     @Override
     @EntityGraph(attributePaths = {"user", "user.group", "skills", "skills.skill", "allocationProject", "allocationSquad", "equipments"})
+    Page<Profile> findAll(Specification<Profile> spec, Pageable pageable);
+
+    @Override
+    @EntityGraph(attributePaths = {"user", "user.group", "skills", "skills.skill", "allocationProject", "allocationSquad", "equipments"})
     List<Profile> findAll();
 
     @Override
@@ -45,6 +50,9 @@ public interface ProfileRepository extends JpaRepository<Profile, UUID>, JpaSpec
 
     // Exclui o perfil associado ao usuário informado.
     void deleteByUserId(UUID userId);
+
+    @EntityGraph(attributePaths = {"user"})
+    List<Profile> findAllByAllocationSquadId(UUID squadId);
 
     @Modifying
     @Query("update Profile p set p.allocationSquad = null where p.allocationSquad.id = :squadId")
