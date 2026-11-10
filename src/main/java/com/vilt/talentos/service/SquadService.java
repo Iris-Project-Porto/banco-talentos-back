@@ -2,6 +2,8 @@ package com.vilt.talentos.service;
 
 import com.vilt.talentos.dto.SquadRequest;
 import com.vilt.talentos.dto.SquadResponse;
+import com.vilt.talentos.dto.SquadResourceInput;
+import com.vilt.talentos.dto.SquadResourceResponse;
 import com.vilt.talentos.entity.*;
 import com.vilt.talentos.exception.ResourceNotFoundException;
 import com.vilt.talentos.exception.UnauthorizedException;
@@ -17,7 +19,9 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -79,7 +83,7 @@ public class SquadService {
 
     public SquadResponse findById(UUID id) {
         return squadRepo.findById(id)
-                .map(mapper::toResponse)
+                .map(squad -> mapper.toResponse(squad).withRecursos(getSquadRecursos(id)))
                 .orElseThrow(() -> {
                     log.warn("Squad ID '{}' não encontrada.", id);
                     return new ResourceNotFoundException("Squad não encontrada");
@@ -99,9 +103,9 @@ public class SquadService {
         Squad savedSquad = squadRepo.save(squad);
         log.info("Squad criada com sucesso. ID gerado: {}", savedSquad.getId());
 
-        syncRecursos(savedSquad, request.recursoIds());
+        syncRecursos(savedSquad, request.recursoIds(), request.recursos());
 
-        return mapper.toResponse(savedSquad);
+        return mapper.toResponse(savedSquad).withRecursos(getSquadRecursos(savedSquad.getId()));
     }
 
     @Transactional
@@ -120,20 +124,52 @@ public class SquadService {
         Squad updatedSquad = squadRepo.save(squad);
         log.info("Squad ID: {} atualizada com sucesso.", id);
 
-        syncRecursos(updatedSquad, request.recursoIds());
+        syncRecursos(updatedSquad, request.recursoIds(), request.recursos());
 
-        return mapper.toResponse(updatedSquad);
+        return mapper.toResponse(updatedSquad).withRecursos(getSquadRecursos(updatedSquad.getId()));
     }
 
-    private void syncRecursos(Squad squad, List<UUID> recursoIds) {
-        if (recursoIds == null) return;
-        profileRepo.clearAllocationSquad(squad.getId());
-        if (!recursoIds.isEmpty()) {
-            List<Profile> profiles = profileRepo.findAllById(recursoIds);
-            for (Profile p : profiles) {
-                p.setAllocationSquad(squad);
+    private List<SquadResourceResponse> getSquadRecursos(UUID squadId) {
+        if (squadId == null) return List.of();
+        return profileRepo.findAllByAllocationSquadId(squadId)
+                .stream()
+                .map(p -> new SquadResourceResponse(
+                        p.getId(),
+                        p.getUser() != null ? p.getUser().getName() : "",
+                        p.getUser() != null ? p.getUser().getEmail() : "",
+                        p.getJobTitle() != null ? p.getJobTitle() : "",
+                        p.getPhotoUrl()
+                ))
+                .toList();
+    }
+
+    private void syncRecursos(Squad squad, List<UUID> recursoIds, List<SquadResourceInput> recursos) {
+        if (recursos != null) {
+            profileRepo.clearAllocationSquad(squad.getId());
+            if (!recursos.isEmpty()) {
+                List<UUID> ids = recursos.stream().map(SquadResourceInput::id).toList();
+                List<Profile> profiles = profileRepo.findAllById(ids);
+                Map<UUID, String> jobTitleMap = recursos.stream()
+                        .filter(r -> r.id() != null && r.jobTitle() != null)
+                        .collect(Collectors.toMap(SquadResourceInput::id, SquadResourceInput::jobTitle, (a, b) -> b));
+
+                for (Profile p : profiles) {
+                    p.setAllocationSquad(squad);
+                    if (jobTitleMap.containsKey(p.getId())) {
+                        p.setJobTitle(jobTitleMap.get(p.getId()));
+                    }
+                }
+                profileRepo.saveAll(profiles);
             }
-            profileRepo.saveAll(profiles);
+        } else if (recursoIds != null) {
+            profileRepo.clearAllocationSquad(squad.getId());
+            if (!recursoIds.isEmpty()) {
+                List<Profile> profiles = profileRepo.findAllById(recursoIds);
+                for (Profile p : profiles) {
+                    p.setAllocationSquad(squad);
+                }
+                profileRepo.saveAll(profiles);
+            }
         }
     }
 

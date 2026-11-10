@@ -2,6 +2,8 @@ package com.vilt.talentos.service;
 
 import com.vilt.talentos.dto.SquadRequest;
 import com.vilt.talentos.dto.SquadResponse;
+import com.vilt.talentos.dto.SquadResourceInput;
+import com.vilt.talentos.dto.SquadResourceResponse;
 import com.vilt.talentos.entity.Profile;
 import com.vilt.talentos.entity.Squad;
 import com.vilt.talentos.entity.User;
@@ -227,6 +229,77 @@ class SquadServiceTest {
         verify(profileRepo).clearAllocationSquad(squadId);
         verify(jobPostingRepo).clearSquad(squadId);
         verify(squadRepo).delete(squad);
+    }
+
+    @Test
+    @DisplayName("Deve buscar squad por ID e retornar seus recursos vinculados")
+    void findById_Success_WithRecursos() {
+        UUID squadId = UUID.randomUUID();
+        Squad squad = Squad.builder().id(squadId).name("Squad Detalhe").build();
+
+        SquadResponse mappedResponse = new SquadResponse(
+                squadId, "Squad Detalhe", "Desc", "Coord", "GP", null, null, true, Instant.now(), null, "Admin", null
+        );
+
+        UUID profileId = UUID.randomUUID();
+        User profileUser = User.builder().name("Desenvolvedor").email("dev@empresa.com").build();
+        Profile profile = Profile.builder()
+                .id(profileId)
+                .user(profileUser)
+                .jobTitle("Tech Lead")
+                .photoUrl("https://foto.png")
+                .build();
+
+        when(squadRepo.findById(squadId)).thenReturn(Optional.of(squad));
+        when(mapper.toResponse(squad)).thenReturn(mappedResponse);
+        when(profileRepo.findAllByAllocationSquadId(squadId)).thenReturn(List.of(profile));
+
+        SquadResponse response = squadService.findById(squadId);
+
+        assertNotNull(response);
+        assertEquals("Squad Detalhe", response.name());
+        assertNotNull(response.recursos());
+        assertEquals(1, response.recursos().size());
+
+        SquadResourceResponse recursoResp = response.recursos().get(0);
+        assertEquals(profileId, recursoResp.id());
+        assertEquals("Desenvolvedor", recursoResp.name());
+        assertEquals("dev@empresa.com", recursoResp.email());
+        assertEquals("Tech Lead", recursoResp.jobTitle());
+        assertEquals("https://foto.png", recursoResp.photoUrl());
+    }
+
+    @Test
+    @DisplayName("Deve atualizar squad e sincronizar recursos com novo cargo/função")
+    void update_Success_WithRecursosAndJobTitle() {
+        UUID squadId = UUID.randomUUID();
+        UUID profileId = UUID.randomUUID();
+        List<SquadResourceInput> recursosInput = List.of(new SquadResourceInput(profileId, "Tech Lead"));
+
+        SquadRequest request = new SquadRequest("Squad Atualizada", "Desc", "Coord", "GP", null, recursosInput);
+
+        Squad existingSquad = Squad.builder().id(squadId).name("Squad Antiga").build();
+        SquadResponse expectedResponse = new SquadResponse(
+                squadId, "Squad Atualizada", "Desc", "Coord", "GP", null, null, true, Instant.now(), null, "Admin", null
+        );
+
+        Profile profile = Profile.builder().id(profileId).jobTitle("Desenvolvedor Junior").build();
+        List<Profile> profiles = new ArrayList<>(List.of(profile));
+
+        when(squadRepo.findById(squadId)).thenReturn(Optional.of(existingSquad));
+        when(userRepo.findById(userId)).thenReturn(Optional.of(mockUser));
+        when(squadRepo.save(any(Squad.class))).thenReturn(existingSquad);
+        when(profileRepo.findAllById(List.of(profileId))).thenReturn(profiles);
+        when(mapper.toResponse(existingSquad)).thenReturn(expectedResponse);
+
+        SquadResponse response = squadService.update(squadId, request);
+
+        assertNotNull(response);
+        verify(profileRepo).clearAllocationSquad(squadId);
+        verify(profileRepo).findAllById(List.of(profileId));
+        assertEquals(existingSquad, profile.getAllocationSquad());
+        assertEquals("Tech Lead", profile.getJobTitle());
+        verify(profileRepo).saveAll(profiles);
     }
 }
 

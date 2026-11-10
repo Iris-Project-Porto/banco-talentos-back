@@ -12,9 +12,14 @@ public record SquadRequest(
     String description,
     String portoCoordinator,
     String projectManager,
-    List<UUID> recursoIds
+    List<UUID> recursoIds,
+    List<SquadResourceInput> recursos
 ) {
     public SquadRequest(String name, String description, String portoCoordinator, String projectManager) {
-        this(name, description, portoCoordinator, projectManager, null);
+        this(name, description, portoCoordinator, projectManager, null, null);
+    }
+
+    public SquadRequest(String name, String description, String portoCoordinator, String projectManager, List<UUID> recursoIds) {
+        this(name, description, portoCoordinator, projectManager, recursoIds, null);
     }
 }

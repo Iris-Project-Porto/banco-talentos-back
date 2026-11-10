@@ -13,6 +13,8 @@ public interface SquadMapper {
     @Mapping(target = "projectId", source = "project.id")
     @Mapping(target = "createdBy", source = "createdBy", qualifiedByName = "userToName")
     @Mapping(target = "updatedBy", source = "updatedBy", qualifiedByName = "userToNameOptional")
+    @Mapping(target = "recursos", ignore = true)
+    @Mapping(target = "withRecursos", ignore = true)
     SquadResponse toResponse(Squad squad);
 
     @Mapping(target = "id", ignore = true)
