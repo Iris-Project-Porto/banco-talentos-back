@@ -101,7 +101,7 @@ public class ProjectService {
                     "SQUAD",
                     savedSquad.getId(),
                     null,
-                    squadAuditSnapshot(savedSquad));
+                    squadProjectSnapshot(savedSquad, "Vínculo de projeto", savedProject));
         }
 
         if (request.squadIds() != null) {
@@ -142,7 +142,8 @@ public class ProjectService {
                     "SQUAD",
                     savedSquad.getId(),
                     null,
-                    squadAuditSnapshot(savedSquad));
+                    squadProjectSnapshot(savedSquad, "Vínculo de projeto", updatedProject));
+            recordProjectSquadChange(updatedProject, savedSquad, true);
         }
 
         if (request.squadIds() != null) {
@@ -203,14 +204,10 @@ public class ProjectService {
                 Map<String, Object> oldValue = squadAuditSnapshot(squad);
                 squad.setProject(null);
                 squad.setUpdatedBy(currentUser);
-                squadRepo.save(squad);
+                Squad savedSquad = squadRepo.save(squad);
                 log.info("Squad ID: {} desvinculada do projeto ID: {}.", squadId, project.getId());
-                auditLogService.record(
-                        AuditOperation.UPDATE,
-                        "SQUAD",
-                        squad.getId(),
-                        oldValue,
-                        squadAuditSnapshot(squad));
+                recordSquadProjectChange(savedSquad, project, false, oldValue);
+                recordProjectSquadChange(project, savedSquad, false);
             }
         }
 
@@ -232,14 +229,10 @@ public class ProjectService {
                 Map<String, Object> oldValue = squadAuditSnapshot(squad);
                 squad.setProject(project);
                 squad.setUpdatedBy(currentUser);
-                squadRepo.save(squad);
+                Squad savedSquad = squadRepo.save(squad);
                 log.info("Squad ID: {} vinculada ao projeto ID: {}.", squadId, project.getId());
-                auditLogService.record(
-                        AuditOperation.UPDATE,
-                        "SQUAD",
-                        squad.getId(),
-                        oldValue,
-                        squadAuditSnapshot(squad));
+                recordSquadProjectChange(savedSquad, project, true, oldValue);
+                recordProjectSquadChange(project, savedSquad, true);
             }
         }
     }
@@ -264,7 +257,14 @@ public class ProjectService {
         Map<String, Object> oldValue = projectAuditSnapshot(project);
         jobPostingRepo.clearProject(id);
         profileRepo.clearAllocationProject(id);
-        squadRepo.clearProject(id);
+        User currentUser = getCurrentUser();
+        for (Squad squad : squadRepo.findByProject_Id(id)) {
+            Map<String, Object> oldSquadValue = squadAuditSnapshot(squad);
+            squad.setProject(null);
+            squad.setUpdatedBy(currentUser);
+            Squad savedSquad = squadRepo.save(squad);
+            recordSquadProjectChange(savedSquad, project, false, oldSquadValue);
+        }
         projectRepo.delete(project);
         auditLogService.record(
                 AuditOperation.DELETE,
@@ -293,6 +293,50 @@ public class ProjectService {
         snapshot.put("Projeto", squad.getProject() == null ? null : squad.getProject().getName());
         snapshot.put("ID do projeto", squad.getProject() == null ? null : squad.getProject().getId());
         snapshot.put("Ativa", squad.isActive());
+        return snapshot;
+    }
+
+    private Map<String, Object> squadProjectSnapshot(Squad squad, String event, Project project) {
+        Map<String, Object> snapshot = squadAuditSnapshot(squad);
+        snapshot.put("Evento", event);
+        snapshot.put("Projeto relacionado", project.getName());
+        return snapshot;
+    }
+
+    private void recordSquadProjectChange(
+            Squad squad,
+            Project project,
+            boolean linked,
+            Map<String, Object> oldValue) {
+        Map<String, Object> newValue = squadProjectSnapshot(
+                squad,
+                linked ? "Vínculo de projeto" : "Remoção de vínculo de projeto",
+                project);
+        auditLogService.record(
+                AuditOperation.UPDATE,
+                "SQUAD",
+                squad.getId(),
+                oldValue,
+                newValue);
+    }
+
+    private void recordProjectSquadChange(Project project, Squad squad, boolean added) {
+        Map<String, Object> oldValue = projectSquadSnapshot(project, squad);
+        Map<String, Object> newValue = projectSquadSnapshot(project, squad);
+        newValue.put("Evento", added ? "Squad adicionada" : "Squad removida");
+
+        auditLogService.record(
+                AuditOperation.UPDATE,
+                "PROJECT",
+                project.getId(),
+                oldValue,
+                newValue);
+    }
+
+    private Map<String, Object> projectSquadSnapshot(Project project, Squad squad) {
+        Map<String, Object> snapshot = projectAuditSnapshot(project);
+        snapshot.put("Squad relacionada", squad.getName());
+        snapshot.put("ID da Squad relacionada", squad.getId());
         return snapshot;
     }
 }
