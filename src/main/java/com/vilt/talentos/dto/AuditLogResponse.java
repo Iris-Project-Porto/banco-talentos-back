@@ -18,15 +18,16 @@ public record AuditLogResponse(
         String entityType,
         UUID entityId,
         String entityName,
+        String description,
         @JsonInclude(JsonInclude.Include.NON_NULL) JsonNode oldValue,
         @JsonInclude(JsonInclude.Include.NON_NULL) JsonNode newValue,
         Instant createdAt
 ) {
     public static AuditLogResponse from(AuditLog auditLog) {
-        return from(auditLog, null);
+        return from(auditLog, null, null);
     }
 
-    public static AuditLogResponse from(AuditLog auditLog, String entityName) {
+    public static AuditLogResponse from(AuditLog auditLog, String entityName, String description) {
         return new AuditLogResponse(
                 auditLog.getId(),
                 userId(auditLog),
@@ -37,6 +38,7 @@ public record AuditLogResponse(
                 auditLog.getEntityType(),
                 auditLog.getEntityId(),
                 entityName,
+                description,
                 auditLog.getOldValue(),
                 auditLog.getNewValue(),
                 auditLog.getCreatedAt()
@@ -44,10 +46,10 @@ public record AuditLogResponse(
     }
 
     public static AuditLogResponse summary(AuditLog auditLog) {
-        return summary(auditLog, null);
+        return summary(auditLog, null, null);
     }
 
-    public static AuditLogResponse summary(AuditLog auditLog, String entityName) {
+    public static AuditLogResponse summary(AuditLog auditLog, String entityName, String description) {
         return new AuditLogResponse(
                 auditLog.getId(),
                 userId(auditLog),
@@ -58,6 +60,7 @@ public record AuditLogResponse(
                 auditLog.getEntityType(),
                 auditLog.getEntityId(),
                 entityName,
+                description,
                 null,
                 null,
                 auditLog.getCreatedAt()

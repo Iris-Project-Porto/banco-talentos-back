@@ -78,7 +78,8 @@ public class AuditLogService {
         return auditLogs.stream()
                 .map(auditLog -> AuditLogResponse.summary(
                         auditLog,
-                        resolveEntityName(auditLog, entityContexts)))
+                        resolveEntityName(auditLog, entityContexts),
+                        eventDescription(auditLog)))
                 .toList();
     }
 
@@ -95,7 +96,24 @@ public class AuditLogService {
         }
 
         Map<String, Map<UUID, AuditEntityContext>> entityContexts = loadEntityContexts(List.of(auditLog));
-        return AuditLogResponse.from(auditLog, resolveEntityName(auditLog, entityContexts));
+        return AuditLogResponse.from(
+                auditLog,
+                resolveEntityName(auditLog, entityContexts),
+                eventDescription(auditLog));
+    }
+
+    private String eventDescription(AuditLog auditLog) {
+        String event = snapshotValue(auditLog.getOldValue(), auditLog.getNewValue(), "Evento");
+        if (isBlank(event)) {
+            return null;
+        }
+
+        String relatedEntity = "PROJECT".equals(auditLog.getEntityType())
+                ? snapshotValue(auditLog.getOldValue(), auditLog.getNewValue(), "Squad relacionada")
+                : snapshotValue(auditLog.getOldValue(), auditLog.getNewValue(), "Projeto relacionado");
+        return !isBlank(relatedEntity)
+                ? event + ": " + relatedEntity
+                : event;
     }
 
     private Map<String, Map<UUID, AuditEntityContext>> loadEntityContexts(List<AuditLog> auditLogs) {
