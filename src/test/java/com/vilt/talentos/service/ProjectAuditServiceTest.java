@@ -3,6 +3,7 @@ package com.vilt.talentos.service;
 import com.vilt.talentos.dto.ProjectRequest;
 import com.vilt.talentos.dto.ProjectResponse;
 import com.vilt.talentos.entity.Project;
+import com.vilt.talentos.entity.Squad;
 import com.vilt.talentos.entity.User;
 import com.vilt.talentos.mapper.ProjectMapper;
 import com.vilt.talentos.mapper.SquadMapper;
@@ -22,12 +23,17 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.util.Optional;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -107,6 +113,96 @@ class ProjectAuditServiceTest {
         verify(projectRepo).delete(project);
         verify(auditLogService).record(eq(com.vilt.talentos.entity.AuditOperation.DELETE),
                 eq("PROJECT"), eq(id), any(), isNull());
+    }
+
+    @Test
+    void shouldAuditSquadProjectLinkAfterSavingSquad() {
+        UUID projectId = UUID.randomUUID();
+        UUID squadId = UUID.randomUUID();
+        Project project = Project.builder().id(projectId).name("Projeto Atlas").active(true).build();
+        Squad squad = Squad.builder().id(squadId).name("Squad de Dados").active(true).build();
+        ProjectRequest request = new ProjectRequest("Projeto Atlas", null, null, List.of(squadId));
+        when(projectRepo.findWithSquadsById(projectId)).thenReturn(Optional.of(project));
+        when(projectRepo.save(project)).thenReturn(project);
+        when(squadRepo.findById(squadId)).thenReturn(Optional.of(squad));
+        when(squadRepo.save(squad)).thenReturn(squad);
+        when(mapper.toResponse(project, squadMapper)).thenReturn(anyResponse(projectId));
+
+        service.update(projectId, request);
+
+        org.mockito.InOrder order = inOrder(squadRepo, auditLogService);
+        order.verify(squadRepo).save(squad);
+        order.verify(auditLogService).record(
+                eq(com.vilt.talentos.entity.AuditOperation.UPDATE),
+                eq("SQUAD"), eq(squadId), any(), org.mockito.ArgumentMatchers.argThat(value ->
+                        value instanceof Map<?, ?> snapshot
+                                && "Vínculo de projeto".equals(snapshot.get("Evento"))
+                                && "Projeto Atlas".equals(snapshot.get("Projeto relacionado"))));
+        verify(auditLogService).record(
+                eq(com.vilt.talentos.entity.AuditOperation.UPDATE),
+                eq("PROJECT"), eq(projectId), any(), org.mockito.ArgumentMatchers.argThat(value ->
+                        value instanceof Map<?, ?> snapshot
+                                && "Squad adicionada".equals(snapshot.get("Evento"))
+                                && "Squad de Dados".equals(snapshot.get("Squad relacionada"))));
+    }
+
+    @Test
+    void shouldAuditProjectWhenSquadIsRemovedDuringProjectUpdate() {
+        UUID projectId = UUID.randomUUID();
+        UUID squadId = UUID.randomUUID();
+        Project project = Project.builder().id(projectId).name("Projeto Atlas").active(true).build();
+        Squad squad = Squad.builder()
+                .id(squadId)
+                .name("Squad de Dados")
+                .project(project)
+                .active(true)
+                .build();
+        project.setSquads(new ArrayList<>(List.of(squad)));
+        ProjectRequest request = new ProjectRequest("Projeto Atlas", null, null, List.of());
+        when(projectRepo.findWithSquadsById(projectId)).thenReturn(Optional.of(project));
+        when(projectRepo.save(project)).thenReturn(project);
+        when(squadRepo.findById(squadId)).thenReturn(Optional.of(squad));
+        when(squadRepo.save(squad)).thenReturn(squad);
+        when(mapper.toResponse(project, squadMapper)).thenReturn(anyResponse(projectId));
+
+        service.update(projectId, request);
+
+        assertThat(squad.getProject()).isNull();
+        verify(auditLogService).record(
+                eq(com.vilt.talentos.entity.AuditOperation.UPDATE),
+                eq("PROJECT"), eq(projectId), any(), org.mockito.ArgumentMatchers.argThat(value ->
+                        value instanceof Map<?, ?> snapshot
+                                && "Squad removida".equals(snapshot.get("Evento"))
+                                && "Squad de Dados".equals(snapshot.get("Squad relacionada"))));
+    }
+
+    @Test
+    void shouldAuditSquadProjectRemovalWhenProjectIsDeleted() {
+        UUID projectId = UUID.randomUUID();
+        UUID squadId = UUID.randomUUID();
+        Project project = Project.builder().id(projectId).name("Projeto Atlas").active(true).build();
+        Squad squad = Squad.builder()
+                .id(squadId)
+                .name("Squad de Dados")
+                .project(project)
+                .active(true)
+                .build();
+        when(projectRepo.findById(projectId)).thenReturn(Optional.of(project));
+        when(squadRepo.findByProject_Id(projectId)).thenReturn(new ArrayList<>(List.of(squad)));
+        when(squadRepo.save(squad)).thenReturn(squad);
+
+        service.deleteProject(projectId);
+
+        assertThat(squad.getProject()).isNull();
+        org.mockito.InOrder order = inOrder(squadRepo, auditLogService, projectRepo);
+        order.verify(squadRepo).save(squad);
+        order.verify(auditLogService).record(
+                eq(com.vilt.talentos.entity.AuditOperation.UPDATE),
+                eq("SQUAD"), eq(squadId), any(), org.mockito.ArgumentMatchers.argThat(value ->
+                        value instanceof Map<?, ?> snapshot
+                                && "Remoção de vínculo de projeto".equals(snapshot.get("Evento"))
+                                && "Projeto Atlas".equals(snapshot.get("Projeto relacionado"))));
+        order.verify(projectRepo).delete(project);
     }
 
     private ProjectResponse anyResponse(UUID id) {
