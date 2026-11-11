@@ -148,6 +148,52 @@ class AuditLogEntityNameTest {
         assertEquals(historical.getId(), result.get(1).id());
     }
 
+    @Test
+    void listIncludesProjectLinkEventDescription() {
+        UUID squadId = UUID.randomUUID();
+        AuditLog log = AuditLog.builder()
+                .id(UUID.randomUUID())
+                .entityId(squadId)
+                .entityType("SQUAD")
+                .newValue(new ObjectMapper().valueToTree(Map.of(
+                        "Evento", "Vínculo de projeto",
+                        "Projeto relacionado", "Projeto Atlas")))
+                .build();
+        when(auditLogRepository.findAllByOrderByCreatedAtDesc()).thenReturn(List.of(log));
+        when(squadRepository.findAuditContextsByIdIn(List.of(squadId)))
+                .thenReturn(List.of(new AuditEntityContext(squadId, "Squad de Dados")));
+
+        List<AuditLogResponse> result = auditLogService.list(null);
+
+        assertEquals("Vínculo de projeto: Projeto Atlas", result.get(0).description());
+        assertEquals("Squad de Dados", result.get(0).entityName());
+        assertNull(result.get(0).oldValue());
+        assertNull(result.get(0).newValue());
+    }
+
+    @Test
+    void listIncludesProjectSquadChangeDescription() {
+        UUID projectId = UUID.randomUUID();
+        AuditLog log = AuditLog.builder()
+                .id(UUID.randomUUID())
+                .entityId(projectId)
+                .entityType("PROJECT")
+                .newValue(new ObjectMapper().valueToTree(Map.of(
+                        "Evento", "Squad removida",
+                        "Squad relacionada", "Squad de Dados")))
+                .build();
+        when(auditLogRepository.findAllByOrderByCreatedAtDesc()).thenReturn(List.of(log));
+        when(projectRepository.findAuditContextsByIdIn(List.of(projectId)))
+                .thenReturn(List.of(new AuditEntityContext(projectId, "Projeto Atlas")));
+
+        List<AuditLogResponse> result = auditLogService.list(null);
+
+        assertEquals("Projeto Atlas", result.get(0).entityName());
+        assertEquals("Squad removida: Squad de Dados", result.get(0).description());
+        assertNull(result.get(0).oldValue());
+        assertNull(result.get(0).newValue());
+    }
+
     private AuditLog audit(UUID entityId, String entityType, User actor, User affected, int second) {
         return AuditLog.builder()
                 .id(UUID.randomUUID())
