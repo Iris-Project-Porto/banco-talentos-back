@@ -44,6 +44,7 @@ public class ProfileService {
     private final AppProperties appProperties;
     private final ProfileMapper profileMapper;
     private final AuditLogService auditLogService;
+    private final JobPostingAllocationRepository allocationRepo;
 
     @Transactional
     public Profile createOrUpdate(UUID userId, ProfileRequest req) {
@@ -419,6 +420,9 @@ public class ProfileService {
     private void applyResourceStatusAutomation(Profile profile, boolean wasAllocatedToProject) {
         boolean deallocated = wasAllocatedToProject && profile.getAllocationProject() == null;
         if (deallocated) {
+            if (allocationRepo != null && profile.getId() != null) {
+                allocationRepo.deactivateByProfileId(profile.getId());
+            }
             profile.setRegistrationStatus(RegistrationStatus.NOT_REQUIRED);
             profile.setRegistrationNumber(null);
             profile.setRegistrationRequestedAt(null);
@@ -430,6 +434,12 @@ public class ProfileService {
         }
 
         ResourceStatus next = ResourceStatus.fromRegistrationStatus(profile.getRegistrationStatus());
+        if (next == ResourceStatus.AVAILABLE
+                && allocationRepo != null
+                && profile.getId() != null
+                && allocationRepo.existsByProfileIdAndActiveTrue(profile.getId())) {
+            next = ResourceStatus.ALLOCATED;
+        }
         profile.setResourceStatus(next);
         log.debug("Perfil {}: status do recurso sincronizado para {} a partir da matrícula {}.",
                 profile.getId(), next, profile.getRegistrationStatus());

@@ -1,9 +1,13 @@
 package com.vilt.talentos.controller;
 
+import com.vilt.talentos.dto.JobPostingAllocationBatchRequest;
+import com.vilt.talentos.dto.JobPostingAllocationBatchResponse;
+import com.vilt.talentos.dto.JobPostingAllocationResponse;
 import com.vilt.talentos.dto.JobPostingCandidateMatchResponse;
 import com.vilt.talentos.dto.JobPostingRequest;
 import com.vilt.talentos.dto.JobPostingResponse;
 import com.vilt.talentos.dto.JobPostingStatusRequest;
+import com.vilt.talentos.service.JobPostingAllocationService;
 import com.vilt.talentos.service.JobPostingService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -16,6 +20,7 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -26,6 +31,7 @@ import java.util.UUID;
 public class AdminJobPostingController {
 
     private final JobPostingService jobPostingService;
+    private final JobPostingAllocationService jobPostingAllocationService;
 
     @GetMapping("/active")
     @Operation(summary = "Listar vagas ativas")
@@ -55,6 +61,22 @@ public class AdminJobPostingController {
             @PageableDefault(size = 20) Pageable pageable
     ) {
         return jobPostingService.findCandidatesForJobPosting(id, minScore, availability, search, pageable);
+    }
+
+    @GetMapping("/{id}/allocations")
+    @Operation(summary = "Listar alocações da vaga", description = "Retorna os recursos alocados para a vaga informada.")
+    public List<JobPostingAllocationResponse> listAllocations(@PathVariable UUID id) {
+        return jobPostingAllocationService.listByJobPosting(id);
+    }
+
+    @PostMapping("/{id}/allocations")
+    @ResponseStatus(HttpStatus.CREATED)
+    @Operation(summary = "Alocar recurso na vaga", description = "Vincula o recurso selecionado à squad e ao projeto da vaga com seu papel/função, atualiza o status do recurso para ALLOCATED e marca a vaga como FILLED.")
+    public JobPostingAllocationBatchResponse allocate(
+            @PathVariable UUID id,
+            @RequestBody @Valid JobPostingAllocationBatchRequest request
+    ) {
+        return jobPostingAllocationService.allocate(id, request);
     }
 
     @PostMapping

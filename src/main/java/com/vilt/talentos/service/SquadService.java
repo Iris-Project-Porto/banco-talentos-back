@@ -31,6 +31,7 @@ public class SquadService {
     private final SquadRepository squadRepo;
     private final ProfileRepository profileRepo;
     private final JobPostingRepository jobPostingRepo;
+    private final JobPostingAllocationRepository allocationRepo;
     private final UserRepository userRepo;
     private final SquadMapper mapper;
 
@@ -144,33 +145,41 @@ public class SquadService {
     }
 
     private void syncRecursos(Squad squad, List<UUID> recursoIds, List<SquadResourceInput> recursos) {
-        if (recursos != null) {
-            profileRepo.clearAllocationSquad(squad.getId());
-            if (!recursos.isEmpty()) {
-                List<UUID> ids = recursos.stream().map(SquadResourceInput::id).toList();
-                List<Profile> profiles = profileRepo.findAllById(ids);
-                Map<UUID, String> jobTitleMap = recursos.stream()
-                        .filter(r -> r.id() != null && r.jobTitle() != null)
-                        .collect(Collectors.toMap(SquadResourceInput::id, SquadResourceInput::jobTitle, (a, b) -> b));
+        if (recursos == null && recursoIds == null) {
+            return;
+        }
 
-                for (Profile p : profiles) {
-                    p.setAllocationSquad(squad);
-                    if (jobTitleMap.containsKey(p.getId())) {
-                        p.setJobTitle(jobTitleMap.get(p.getId()));
-                    }
-                }
-                profileRepo.saveAll(profiles);
-            }
-        } else if (recursoIds != null) {
-            profileRepo.clearAllocationSquad(squad.getId());
-            if (!recursoIds.isEmpty()) {
-                List<Profile> profiles = profileRepo.findAllById(recursoIds);
-                for (Profile p : profiles) {
-                    p.setAllocationSquad(squad);
-                }
-                profileRepo.saveAll(profiles);
+        List<UUID> targetIds = recursos != null
+                ? recursos.stream().map(SquadResourceInput::id).toList()
+                : recursoIds;
+
+        profileRepo.clearAllocationSquad(squad.getId());
+        if (allocationRepo != null) {
+            if (targetIds.isEmpty()) {
+                allocationRepo.deactivateBySquadId(squad.getId());
+            } else {
+                allocationRepo.deactivateBySquadIdAndProfileIdNotIn(squad.getId(), targetIds);
             }
         }
+
+        if (targetIds.isEmpty()) {
+            return;
+        }
+
+        List<Profile> profiles = profileRepo.findAllById(targetIds);
+        Map<UUID, String> jobTitleMap = recursos != null
+                ? recursos.stream()
+                        .filter(r -> r.id() != null && r.jobTitle() != null)
+                        .collect(Collectors.toMap(SquadResourceInput::id, SquadResourceInput::jobTitle, (a, b) -> b))
+                : Map.of();
+
+        for (Profile p : profiles) {
+            p.setAllocationSquad(squad);
+            if (jobTitleMap.containsKey(p.getId())) {
+                p.setJobTitle(jobTitleMap.get(p.getId()));
+            }
+        }
+        profileRepo.saveAll(profiles);
     }
 
     public void setActiveStatus(UUID id, boolean active) {
@@ -206,6 +215,9 @@ public class SquadService {
                     log.warn("Falha ao deletar: Squad ID '{}' não encontrada.", id);
                     return new ResourceNotFoundException("Squad não encontrada");
                 });
+        if (allocationRepo != null) {
+            allocationRepo.deactivateBySquadId(id);
+        }
         profileRepo.clearAllocationSquad(id);
         jobPostingRepo.clearSquad(id);
         squadRepo.delete(squad);

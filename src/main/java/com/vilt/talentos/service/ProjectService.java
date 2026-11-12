@@ -10,6 +10,7 @@ import com.vilt.talentos.exception.ResourceNotFoundException;
 import com.vilt.talentos.exception.UnauthorizedException;
 import com.vilt.talentos.mapper.ProjectMapper;
 import com.vilt.talentos.mapper.SquadMapper;
+import com.vilt.talentos.repository.JobPostingAllocationRepository;
 import com.vilt.talentos.repository.JobPostingRepository;
 import com.vilt.talentos.repository.ProfileRepository;
 import com.vilt.talentos.repository.ProjectRepository;
@@ -33,6 +34,7 @@ public class ProjectService {
 
     private final ProjectRepository projectRepo;
     private final JobPostingRepository jobPostingRepo;
+    private final JobPostingAllocationRepository allocationRepo;
     private final ProfileRepository profileRepo;
     private final UserRepository userRepo;
     private final SquadRepository squadRepo;
@@ -202,6 +204,9 @@ public class ProjectService {
                     log.warn("Falha ao deletar: Projeto ID '{}' não encontrado.", id);
                     return new ResourceNotFoundException("Projeto não encontrado");
                 });
+        if (allocationRepo != null) {
+            allocationRepo.deactivateByProjectId(id);
+        }
         jobPostingRepo.clearProject(id);
         profileRepo.clearAllocationProject(id);
         squadRepo.clearProject(id);

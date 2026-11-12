@@ -20,6 +20,7 @@ import com.vilt.talentos.entity.AuditOperation;
 import com.vilt.talentos.exception.BadRequestException;
 import com.vilt.talentos.mapper.ProfileMapper;
 import com.vilt.talentos.repository.GroupRepository;
+import com.vilt.talentos.repository.JobPostingAllocationRepository;
 import com.vilt.talentos.repository.ProfileRepository;
 import com.vilt.talentos.repository.ProjectRepository;
 import com.vilt.talentos.repository.SkillRepository;
@@ -69,6 +70,8 @@ class ProfileServiceTest {
     private ProjectRepository projectRepo;
     @Mock
     private SquadRepository squadRepo;
+    @Mock
+    private JobPostingAllocationRepository allocationRepo;
 
     @InjectMocks
     private ProfileService profileService;
@@ -409,6 +412,7 @@ class ProfileServiceTest {
         assertEquals(null, result.getAllocationProject());
         assertEquals(RegistrationStatus.NOT_REQUIRED, result.getRegistrationStatus());
         assertEquals(ResourceStatus.AVAILABLE, result.getResourceStatus());
+        verify(allocationRepo).deactivateByProfileId(profileId);
     }
 
     @Test
