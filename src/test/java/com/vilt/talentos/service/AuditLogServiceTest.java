@@ -7,7 +7,11 @@ import com.vilt.talentos.entity.User;
 import com.vilt.talentos.entity.UserRole;
 import com.vilt.talentos.entity.AuditOperation;
 import com.vilt.talentos.repository.AuditLogRepository;
+import com.vilt.talentos.repository.JobPostingRepository;
 import com.vilt.talentos.repository.ProfileRepository;
+import com.vilt.talentos.repository.ProjectRepository;
+import com.vilt.talentos.repository.ResourceEquipmentRepository;
+import com.vilt.talentos.repository.SquadRepository;
 import com.vilt.talentos.repository.UserRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -45,6 +49,18 @@ class AuditLogServiceTest {
 
     @Mock
     private ObjectMapper objectMapper;
+
+    @Mock
+    private ProjectRepository projectRepository;
+
+    @Mock
+    private SquadRepository squadRepository;
+
+    @Mock
+    private JobPostingRepository jobPostingRepository;
+
+    @Mock
+    private ResourceEquipmentRepository resourceEquipmentRepository;
 
     @InjectMocks
     private AuditLogService auditLogService;
