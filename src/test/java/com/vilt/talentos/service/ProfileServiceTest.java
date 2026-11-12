@@ -17,6 +17,7 @@ import com.vilt.talentos.entity.Skill;
 import com.vilt.talentos.entity.SkillType;
 import com.vilt.talentos.entity.User;
 import com.vilt.talentos.entity.AuditOperation;
+import com.vilt.talentos.exception.BadRequestException;
 import com.vilt.talentos.mapper.ProfileMapper;
 import com.vilt.talentos.repository.GroupRepository;
 import com.vilt.talentos.repository.ProfileRepository;
@@ -36,6 +37,7 @@ import java.util.Map;
 import org.mockito.ArgumentCaptor;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -185,7 +187,7 @@ class ProfileServiceTest {
 
 
     @Test
-    void adminUpdate_reconcilesHardAndSoftSkills_savesWithoutDuplicates() {
+    void adminUpdate_rejectsHardSkillRequestedAsSoft() {
         UUID profileId = UUID.randomUUID();
         User user = User.builder().email("test@vilt-group.com").build();
         
@@ -215,19 +217,71 @@ class ProfileServiceTest {
         );
 
         when(profileRepo.findById(profileId)).thenReturn(Optional.of(profile));
-        when(skillRepo.findByName("TYPESCRIPT")).thenReturn(Optional.empty());
-        when(skillRepo.save(any(Skill.class))).thenAnswer(inv -> inv.getArgument(0));
-        when(profileRepo.save(any(Profile.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(skillRepo.findByName("TYPESCRIPT")).thenReturn(Optional.of(
+                Skill.builder().name("TYPESCRIPT").type(SkillType.HARD).build()));
 
-        Profile result = profileService.adminUpdate(profileId, req);
+        assertThrows(BadRequestException.class, () -> profileService.adminUpdate(profileId, req));
+
+        assertEquals(SkillType.HARD, skill.getType());
+        assertEquals(5, ps.getProficiencyLevel());
+        verify(skillRepo, never()).save(any(Skill.class));
+        verify(profileRepo, never()).save(any(Profile.class));
+    }
+
+    @Test
+    void updateMyProfile_rejectsSoftSkillRequestedAsHard() {
+        UUID userId = UUID.randomUUID();
+        Skill skill = Skill.builder()
+                .id(UUID.randomUUID())
+                .name("COMUNICACAO")
+                .type(SkillType.SOFT)
+                .build();
+        ProfileSkill profileSkill = ProfileSkill.builder()
+                .skill(skill)
+                .proficiencyLevel(6)
+                .build();
+        Profile profile = Profile.builder()
+                .user(User.builder().id(userId).build())
+                .skills(new java.util.ArrayList<>(java.util.List.of(profileSkill)))
+                .build();
+        profileSkill.setProfile(profile);
+
+        ProfileSelfUpdateRequest request = new ProfileSelfUpdateRequest(
+                null, null, null, null, null, null, null, null,
+                null, null, null, null, null,
+                java.util.List.of(new SkillEntry("COMUNICACAO", 9)),
+                null);
+        when(profileRepo.findByUserId(userId)).thenReturn(Optional.of(profile));
+
+        assertThrows(BadRequestException.class, () -> profileService.updateMyProfile(userId, request));
 
         assertEquals(SkillType.SOFT, skill.getType());
-        assertEquals(10, ps.getProficiencyLevel());
-        
-        assertEquals(2, result.getSkills().size());
-        boolean hasTypeScript = result.getSkills().stream()
-                .anyMatch(pSkill -> pSkill.getSkill().getName().equals("TYPESCRIPT") && pSkill.getSkill().getType() == SkillType.HARD);
-        org.junit.jupiter.api.Assertions.assertTrue(hasTypeScript);
+        assertEquals(6, profileSkill.getProficiencyLevel());
+        verify(profileRepo, never()).save(any(Profile.class));
+    }
+
+    @Test
+    void updateMyProfile_rejectsSkillThatDoesNotExistInCatalog() {
+        UUID userId = UUID.randomUUID();
+        Profile profile = Profile.builder()
+                .user(User.builder().id(userId).build())
+                .skills(new java.util.ArrayList<>())
+                .build();
+        ProfileSelfUpdateRequest request = new ProfileSelfUpdateRequest(
+                null, null, null, null, null, null, null, null,
+                null, null, null, null, null,
+                null,
+                java.util.List.of(new SkillEntry("COMUNICACAO", 9)));
+        when(profileRepo.findByUserId(userId)).thenReturn(Optional.of(profile));
+        when(skillRepo.findByName("COMUNICACAO")).thenReturn(Optional.empty());
+
+        BadRequestException exception = assertThrows(
+                BadRequestException.class,
+                () -> profileService.updateMyProfile(userId, request));
+
+        assertTrue(exception.getMessage().contains("não existe no catálogo"));
+        verify(skillRepo, never()).save(any(Skill.class));
+        verify(profileRepo, never()).save(any(Profile.class));
     }
 
     @Test

@@ -253,6 +253,26 @@ public class AuditLogService {
     }
 
     @Transactional
+    public void recordUserChange(
+            AuditOperation operation,
+            UUID userId,
+            Object oldValue,
+            Object newValue
+    ) {
+        AuditLog auditLog = AuditLog.builder()
+                .user(getCurrentUserIfAuthenticated())
+                .userAffected(userRepository.getReferenceById(userId))
+                .operation(operation)
+                .entityType("USER")
+                .entityId(userId)
+                .oldValue(toJson(oldValue))
+                .newValue(toJson(newValue))
+                .build();
+
+        auditLogRepository.save(auditLog);
+    }
+
+    @Transactional
     public void recordForAffectedUsers(
             AuditOperation operation,
             String entityType,
@@ -281,12 +301,20 @@ public class AuditLogService {
     }
 
     private User getCurrentUser() {
+        User currentUser = getCurrentUserIfAuthenticated();
+        if (currentUser == null) {
+            throw new UnauthorizedException("Usuário não autenticado");
+        }
+        return currentUser;
+    }
+
+    private User getCurrentUserIfAuthenticated() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
         if (authentication == null
                 || !authentication.isAuthenticated()
                 || "anonymousUser".equals(authentication.getPrincipal())) {
-            throw new UnauthorizedException("Usuário não autenticado");
+            return null;
         }
 
         try {

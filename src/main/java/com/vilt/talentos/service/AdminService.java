@@ -2,6 +2,7 @@ package com.vilt.talentos.service;
 
 import com.vilt.talentos.config.AppProperties;
 import com.vilt.talentos.dto.DashboardKpisResponse;
+import com.vilt.talentos.entity.AuditOperation;
 import com.vilt.talentos.entity.DomainStatus;
 import com.vilt.talentos.entity.ExperienceLevel;
 import com.vilt.talentos.entity.SkillType;
@@ -35,6 +36,7 @@ public class AdminService {
     private final UserRepository userRepo;
     private final EmailService emailService;
     private final AppProperties appProperties;
+    private final AuditLogService auditLogService;
 
     public DashboardKpisResponse getDashboardKpis() {
         log.info("Calculando KPIs do dashboard geral.");
@@ -111,6 +113,11 @@ public class AdminService {
         user.setApprovedAt(Instant.now());
         
         userRepo.save(user);
+        auditLogService.recordUserChange(
+                AuditOperation.UPDATE,
+                user.getId(),
+                null,
+                Map.of("Aprovação", "alterada"));
         log.info("Status do usuário ID: {} alterado para ACTIVE. Disparando e-mail de notificação.", userId);
 
         emailService.sendAdminApprovalConfirmedEmail(user.getEmail(), user.getName(), appProperties.getUrl());
@@ -129,6 +136,11 @@ public class AdminService {
 
         user.setStatus(DomainStatus.INACTIVE);
         userRepo.save(user);
+        auditLogService.recordUserChange(
+                AuditOperation.UPDATE,
+                user.getId(),
+                null,
+                Map.of("Status", "alterado"));
         log.info("Usuário ID: {} rejeitado com sucesso. Novo status: INACTIVE.", userId);
     }
 }

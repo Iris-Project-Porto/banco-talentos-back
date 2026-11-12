@@ -14,6 +14,7 @@ import com.vilt.talentos.repository.GroupRepository;
 import com.vilt.talentos.repository.ProfileRepository;
 import com.vilt.talentos.repository.UserRepository;
 import com.vilt.talentos.security.JwtService;
+import com.vilt.talentos.entity.AuditOperation;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -55,6 +56,8 @@ class AuthServiceTest {
     private AppProperties appProperties;
     @Mock
     private UserMapper userMapper;
+    @Mock
+    private AuditLogService auditLogService;
 
     @InjectMocks
     private AuthService authService;
@@ -104,6 +107,7 @@ class AuthServiceTest {
 
         verify(userRepo).save(any(User.class));
         verify(userRepo).save(user);
+        verifyNoInteractions(auditLogService);
     }
 
     @Test
@@ -159,6 +163,7 @@ class AuthServiceTest {
 
         verify(userRepo).save(any(User.class));
         verify(userRepo).save(user);
+        verifyNoInteractions(auditLogService);
     }
 
     @Test
@@ -225,7 +230,9 @@ class AuthServiceTest {
     void resetPassword_ValidToken_UpdatesPassword() {
         String token = "valid-token";
         String email = "test@vilt-group.com";
+        UUID userId = UUID.randomUUID();
         User user = User.builder()
+                .id(userId)
                 .email(email)
                 .password("old-encoded-password")
                 .mustChangePassword(true)
@@ -252,6 +259,11 @@ class AuthServiceTest {
         assertNull(user.getRefreshToken());
         assertNull(user.getRefreshTokenExpires());
         assertEquals(1, user.getTokenVersion());
+        verify(auditLogService).recordUserChange(
+                AuditOperation.UPDATE,
+                userId,
+                null,
+                java.util.Map.of("Senha", "alterada"));
     }
 
     @Test

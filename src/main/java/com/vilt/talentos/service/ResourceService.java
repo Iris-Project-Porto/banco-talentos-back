@@ -40,9 +40,9 @@ public class ResourceService {
     private final GroupRepository groupRepo;
     private final UserReferenceCleanupRepository userReferenceCleanupRepo;
     private final PasswordEncoder passwordEncoder;
-    private final AuditLogService auditLogService;
     private final EmailService emailService;
     private final AppProperties appProperties;
+    private final AuditLogService auditLogService;
 
     @Transactional
     public CreateResourceResponse createByAdmin(CreateResourceRequest request) {
@@ -73,6 +73,11 @@ public class ResourceService {
                 .group(group)
                 .build();
         userRepo.save(user);
+        auditLogService.recordUserChange(
+                AuditOperation.CREATE,
+                user.getId(),
+                null,
+                Map.of("Usuário", "criado", "Senha", "alterada"));
 
         Profile profile = Profile.builder()
                 .user(user)
@@ -152,6 +157,12 @@ public class ResourceService {
         Map<String, Object> oldValue = resourceAuditSnapshot(profile);
         auditLogService.record(AuditOperation.DELETE, "PROFILE", profile.getId(),
                 user.getId(), oldValue, null);
+
+        auditLogService.recordUserChange(
+                AuditOperation.DELETE,
+                user.getId(),
+                null,
+                Map.of("Usuário", "excluído"));
 
         userReferenceCleanupRepo.deleteReferences(user.getId());
         profileRepo.delete(profile);
