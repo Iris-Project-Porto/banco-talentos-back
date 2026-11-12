@@ -63,6 +63,7 @@ public class ProfileService {
         var profile = existingProfile.orElseGet(() -> Profile.builder()
                 .user(user).status(DomainStatus.PENDING).build());
         Map<String, Object> oldValue = isNewProfile ? null : profileAuditSnapshot(profile);
+        List<Map<String, Object>> oldSkills = profileSkillSnapshots(profile);
 
         // Toda submissão pelo recurso deve passar por revisão (status PENDENTE)
         boolean wasActive = DomainStatus.ACTIVE == profile.getStatus();
@@ -82,6 +83,7 @@ public class ProfileService {
         log.info("Perfil salvo e alterado para PENDING. ID do Perfil: {}", saved.getId());
 
         Map<String, Object> newValue = profileAuditSnapshot(saved);
+        recordProfileSkillChanges(oldSkills, profileSkillSnapshots(saved), saved.getUser().getId());
         if (isNewProfile) {
             auditLogService.record(AuditOperation.CREATE, "PROFILE", saved.getId(), saved.getUser().getId(), null, newValue);
         } else if (!Objects.equals(oldValue, newValue)) {
@@ -160,6 +162,7 @@ public class ProfileService {
                     return new ResourceNotFoundException("Perfil não encontrado para o usuário");
                 });
         Map<String, Object> oldValue = profileAuditSnapshot(profile);
+        List<Map<String, Object>> oldSkills = profileSkillSnapshots(profile);
 
         if (req.photoUrl() != null) profile.setPhotoUrl(sanitizePhotoUrl(req.photoUrl()));
         if (req.jobTitle() != null) profile.setJobTitle(blankToNull(req.jobTitle()));
@@ -181,6 +184,7 @@ public class ProfileService {
 
         Profile saved = profileRepo.save(profile);
         Map<String, Object> newValue = profileAuditSnapshot(saved);
+        recordProfileSkillChanges(oldSkills, profileSkillSnapshots(saved), saved.getUser().getId());
         if (!Objects.equals(oldValue, newValue)) {
             auditLogService.record(AuditOperation.UPDATE, "PROFILE", saved.getId(), saved.getUser().getId(), oldValue, newValue);
         }
@@ -304,6 +308,7 @@ public class ProfileService {
                     return new ResourceNotFoundException("Perfil não encontrado");
                 });
         Map<String, Object> oldValue = profileAuditSnapshot(profile);
+        List<Map<String, Object>> oldSkills = profileSkillSnapshots(profile);
         DomainStatus oldStatus = profile.getStatus();
         boolean wasAllocatedToProject = profile.getAllocationProject() != null;
         
@@ -401,6 +406,7 @@ public class ProfileService {
 
         Profile saved = profileRepo.save(profile);
         Map<String, Object> newValue = profileAuditSnapshot(saved);
+        recordProfileSkillChanges(oldSkills, profileSkillSnapshots(saved), saved.getUser().getId());
         if (!Objects.equals(oldValue, newValue)) {
             auditLogService.record(AuditOperation.UPDATE, "PROFILE", saved.getId(), saved.getUser().getId(), oldValue, newValue);
         }
@@ -606,6 +612,60 @@ public class ProfileService {
         return new BadRequestException(
                 "A skill '" + skillName + "' está cadastrada como " + actualType
                         + " e não pode ser salva como " + expectedType + ".");
+    }
+
+    private List<Map<String, Object>> profileSkillSnapshots(Profile profile) {
+        return profile.getSkills().stream()
+                .sorted(Comparator
+                        .comparing((ProfileSkill skill) -> skill.getSkill().getName(), String.CASE_INSENSITIVE_ORDER)
+                        .thenComparing(ProfileSkill::getId, Comparator.nullsLast(Comparator.naturalOrder())))
+                .map(skill -> {
+                    Map<String, Object> snapshot = new LinkedHashMap<>();
+                    snapshot.put("ID", skill.getId());
+                    snapshot.put("ID da skill", skill.getSkill().getId());
+                    snapshot.put("Skill", skill.getSkill().getName());
+                    snapshot.put("Tipo", skill.getSkill().getType());
+                    snapshot.put("Nível de proficiência", skill.getProficiencyLevel());
+                    return snapshot;
+                })
+                .toList();
+    }
+
+    private void recordProfileSkillChanges(
+            List<Map<String, Object>> oldSkills,
+            List<Map<String, Object>> newSkills,
+            UUID userAffectedId) {
+        Map<UUID, Map<String, Object>> oldBySkill = oldSkills.stream()
+                .collect(Collectors.toMap(
+                        skill -> (UUID) skill.get("ID da skill"),
+                        skill -> skill,
+                        (existing, replacement) -> replacement,
+                        LinkedHashMap::new));
+        Map<UUID, Map<String, Object>> newBySkill = newSkills.stream()
+                .collect(Collectors.toMap(
+                        skill -> (UUID) skill.get("ID da skill"),
+                        skill -> skill,
+                        (existing, replacement) -> replacement,
+                        LinkedHashMap::new));
+
+        for (Map.Entry<UUID, Map<String, Object>> entry : newBySkill.entrySet()) {
+            Map<String, Object> oldSkill = oldBySkill.get(entry.getKey());
+            Map<String, Object> newSkill = entry.getValue();
+            if (oldSkill == null) {
+                auditLogService.record(AuditOperation.CREATE, "PROFILE_SKILL",
+                        (UUID) newSkill.get("ID"), userAffectedId, null, newSkill);
+            } else if (!Objects.equals(oldSkill, newSkill)) {
+                auditLogService.record(AuditOperation.UPDATE, "PROFILE_SKILL",
+                        (UUID) newSkill.get("ID"), userAffectedId, oldSkill, newSkill);
+            }
+        }
+
+        for (Map.Entry<UUID, Map<String, Object>> entry : oldBySkill.entrySet()) {
+            if (!newBySkill.containsKey(entry.getKey())) {
+                auditLogService.record(AuditOperation.DELETE, "PROFILE_SKILL",
+                        (UUID) entry.getValue().get("ID"), userAffectedId, entry.getValue(), null);
+            }
+        }
     }
 
     public String getInitials(String fullName) {

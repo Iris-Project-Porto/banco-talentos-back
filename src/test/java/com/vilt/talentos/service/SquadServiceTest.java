@@ -55,6 +55,9 @@ class SquadServiceTest {
     @Mock
     private SquadMapper mapper;
 
+    @Mock
+    private AuditLogService auditLogService;
+
     @InjectMocks
     private SquadService squadService;
 

@@ -19,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -152,13 +153,32 @@ public class ResourceService {
             throw new ResourceNotFoundException("Recurso não encontrado.");
         }
 
+        // Registra o histórico antes da limpeza, pois o usuário será removido fisicamente.
+        Map<String, Object> oldValue = resourceAuditSnapshot(profile);
+        auditLogService.record(AuditOperation.DELETE, "PROFILE", profile.getId(),
+                user.getId(), oldValue, null);
+
         auditLogService.recordUserChange(
                 AuditOperation.DELETE,
                 user.getId(),
                 null,
                 Map.of("Usuário", "excluído"));
+
         userReferenceCleanupRepo.deleteReferences(user.getId());
         profileRepo.delete(profile);
         userRepo.delete(user);
+    }
+
+    private Map<String, Object> resourceAuditSnapshot(Profile profile) {
+        // Preserva a identificação do recurso para consultas futuras ao histórico.
+        Map<String, Object> snapshot = new LinkedHashMap<>();
+        snapshot.put("ID do perfil", profile.getId());
+        snapshot.put("ID do usuário", profile.getUser().getId());
+        snapshot.put("Nome do usuário", profile.getUser().getName());
+        snapshot.put("Email do usuário", profile.getUser().getEmail());
+        snapshot.put("Cargo", profile.getJobTitle());
+        snapshot.put("Área", profile.getArea());
+        snapshot.put("Status", profile.getStatus());
+        return snapshot;
     }
 }

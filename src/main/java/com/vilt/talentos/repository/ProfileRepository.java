@@ -1,5 +1,6 @@
 package com.vilt.talentos.repository;
 
+import com.vilt.talentos.dto.AuditEntityContext;
 import com.vilt.talentos.entity.DomainStatus;
 import com.vilt.talentos.entity.Profile;
 import org.springframework.data.domain.Page;
@@ -14,10 +15,19 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
 import java.util.List;
+import java.util.Collection;
 import java.util.Optional;
 import java.util.UUID;
 
 public interface ProfileRepository extends JpaRepository<Profile, UUID>, JpaSpecificationExecutor<Profile> {
+    @Query("select new com.vilt.talentos.dto.AuditEntityContext(p.id, u.name) "
+            + "from Profile p join p.user u where p.id in :ids")
+    List<AuditEntityContext> findAuditContextsByProfileIdIn(@Param("ids") Collection<UUID> ids);
+
+    @Query("select new com.vilt.talentos.dto.AuditEntityContext(ps.id, s.name) "
+            + "from ProfileSkill ps join ps.skill s where ps.id in :ids")
+    List<AuditEntityContext> findAuditContextsByProfileSkillIdIn(@Param("ids") Collection<UUID> ids);
+
     @EntityGraph(attributePaths = {"user", "user.group", "skills", "skills.skill", "allocationProject", "allocationSquad", "equipments"})
     Optional<Profile> findByUserId(UUID userId);
 
