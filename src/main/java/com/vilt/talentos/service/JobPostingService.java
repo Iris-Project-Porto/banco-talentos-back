@@ -1,6 +1,7 @@
 package com.vilt.talentos.service;
 
 import com.vilt.talentos.dto.JobPostingCandidateMatchResponse;
+import com.vilt.talentos.dto.JobPostingFilterRequest;
 import com.vilt.talentos.dto.JobPostingRequest;
 import com.vilt.talentos.dto.JobPostingResponse;
 import com.vilt.talentos.dto.JobPostingSkillRequest;
@@ -44,26 +45,18 @@ public class JobPostingService {
     private final JobPostingRepository jobPostingRepository;
     private final AuditLogRepository auditLogRepository;
 
-    public Page<JobPostingResponse> findAllActive(Pageable pageable) {
-        Page<JobPostingResponse> page = jobPostingRepo.findByActive(true, pageable)
+    public Page<JobPostingResponse> findAllActive(JobPostingFilterRequest filters, Pageable pageable) {
+        Page<JobPostingResponse> page = jobPostingRepo
+                .findAll(JobPostingSpecification.withFilters(true, filters), pageable)
                 .map(mapper::toResponse);
-
-        if (page.isEmpty()) {
-            log.warn("Busca por vagas ativas retornou vazia.");
-            throw new ResourceNotFoundException("Nenhuma vaga ativa encontrada");
-        }
 
         return page;
     }
 
-    public Page<JobPostingResponse> findAllInactive(Pageable pageable) {
-        Page<JobPostingResponse> page = jobPostingRepo.findByActive(false, pageable)
+    public Page<JobPostingResponse> findAllInactive(JobPostingFilterRequest filters, Pageable pageable) {
+        Page<JobPostingResponse> page = jobPostingRepo
+                .findAll(JobPostingSpecification.withFilters(false, filters), pageable)
                 .map(mapper::toResponse);
-
-        if (page.isEmpty()) {
-            log.warn("Busca por vagas inativas retornou vazia.");
-            throw new ResourceNotFoundException("Nenhuma vaga inativa encontrada");
-        }
         return page;
     }
 
@@ -118,8 +111,7 @@ public class JobPostingService {
         if (jobPosting.getStatus() == JobPostingStatus.CANCELLED
                 || jobPosting.getStatus() == JobPostingStatus.FILLED) {
             throw new ConflictException(
-                    "Vagas canceladas ou preenchidas só podem ter o status alterado."
-            );
+                    "Vagas canceladas ou preenchidas só podem ter o status alterado.");
         }
 
         JobPostingResponse oldValue = mapper.toResponse(jobPosting);
@@ -288,8 +280,7 @@ public class JobPostingService {
         if (jobPosting.getStatus() == JobPostingStatus.CANCELLED
                 || jobPosting.getStatus() == JobPostingStatus.FILLED) {
             throw new ConflictException(
-                    "Vagas canceladas ou preenchidas não podem ser ativadas ou desativadas."
-            );
+                    "Vagas canceladas ou preenchidas não podem ser ativadas ou desativadas.");
         }
 
         Boolean oldActive = jobPosting.getActive();
@@ -533,6 +524,6 @@ public class JobPostingService {
         jobPostingSkillRepository.deleteByJobPostingId(jobPostingId);
 
         jobPostingRepository.delete(jobPosting);
-       
+
     }
 }
