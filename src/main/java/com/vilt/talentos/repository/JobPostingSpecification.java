@@ -56,8 +56,16 @@ public class JobPostingSpecification {
 
             // Filtro multiplo para Skills 
             if (filters.skills() != null && !filters.skills().isEmpty()) {
-                var skillsJoin = root.join("skills").join("skill");
-                predicates.add(skillsJoin.get("name").in(filters.skills()));
+                var skillsJoin = root.join("skills").join("skill"); 
+                
+                List<Predicate> skillPredicates = new ArrayList<>();
+                
+                for (String skill : filters.skills()) {
+                    String likePattern = "%" + skill.toLowerCase().trim() + "%";
+                    skillPredicates.add(cb.like(cb.lower(skillsJoin.get("name")), likePattern));
+                }
+                
+                predicates.add(cb.or(skillPredicates.toArray(new Predicate[0])));
             }
 
             return cb.and(predicates.toArray(new Predicate[0]));
