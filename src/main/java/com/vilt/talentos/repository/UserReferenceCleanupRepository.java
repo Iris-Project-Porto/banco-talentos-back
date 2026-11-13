@@ -39,8 +39,6 @@ public class UserReferenceCleanupRepository {
                                         userId, userId);
                 }
 
-                jdbcTemplate.update("UPDATE audit_logs SET user_id = NULL WHERE user_id = ?", userId);
-                jdbcTemplate.update("UPDATE audit_logs SET user_affected_id = NULL WHERE user_affected_id = ?", userId);
                 jdbcTemplate.update("DELETE FROM form_submissions WHERE user_id = ?", userId);
         }
 }

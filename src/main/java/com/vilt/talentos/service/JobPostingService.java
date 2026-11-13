@@ -26,6 +26,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -43,7 +44,6 @@ public class JobPostingService {
     private final JobPostingMapper mapper;
     private final JobPostingSkillRepository jobPostingSkillRepository;
     private final JobPostingRepository jobPostingRepository;
-    private final AuditLogRepository auditLogRepository;
 
     public Page<JobPostingResponse> findAllActive(JobPostingFilterRequest filters, Pageable pageable) {
         Page<JobPostingResponse> page = jobPostingRepo
@@ -94,8 +94,15 @@ public class JobPostingService {
 
         JobPosting savedJobPosting = jobPostingRepo.save(jobPosting);
         log.info("Vaga criada com sucesso. ID gerado: {}", savedJobPosting.getId());
+        JobPostingResponse response = mapper.toResponse(savedJobPosting);
+        auditLogService.record(
+                AuditOperation.CREATE,
+                "JOB_POSTING",
+                savedJobPosting.getId(),
+                null,
+                jobPostingAuditSnapshot(response));
 
-        return mapper.toResponse(savedJobPosting);
+        return response;
     }
 
     @Transactional
@@ -140,13 +147,17 @@ public class JobPostingService {
 
         JobPostingResponse newValue = mapper.toResponse(updatedJobPosting);
 
-        auditLogService.record(
-                AuditOperation.UPDATE,
-                "JOB_POSTING",
-                updatedJobPosting.getId(),
-                null,
-                jobPostingAuditSnapshot(oldValue),
-                jobPostingAuditSnapshot(newValue));
+        Map<String, Object> oldSnapshot = jobPostingAuditSnapshot(oldValue);
+        Map<String, Object> newSnapshot = jobPostingAuditSnapshot(newValue);
+        if (!Objects.equals(oldSnapshot, newSnapshot)) {
+            auditLogService.record(
+                    AuditOperation.UPDATE,
+                    "JOB_POSTING",
+                    updatedJobPosting.getId(),
+                    null,
+                    oldSnapshot,
+                    newSnapshot);
+        }
 
         return newValue;
     }
@@ -519,11 +530,18 @@ public class JobPostingService {
                     return new RuntimeException("Vaga não encontrada com o ID: " + jobPostingId);
                 });
 
-        auditLogRepository.deleteByEntityId(jobPostingId);
+        JobPostingResponse oldValue = mapper.toResponse(jobPosting);
 
         jobPostingSkillRepository.deleteByJobPostingId(jobPostingId);
 
         jobPostingRepository.delete(jobPosting);
 
+        auditLogService.record(
+                AuditOperation.DELETE,
+                "JOB_POSTING",
+                jobPostingId,
+                null,
+                jobPostingAuditSnapshot(oldValue),
+                null);
     }
 }
