@@ -1,6 +1,7 @@
 package com.vilt.talentos.controller;
 
 import com.vilt.talentos.dto.JobPostingCandidateMatchResponse;
+import com.vilt.talentos.dto.JobPostingFilterRequest;
 import com.vilt.talentos.dto.JobPostingRequest;
 import com.vilt.talentos.dto.JobPostingResponse;
 import com.vilt.talentos.dto.JobPostingStatusRequest;
@@ -28,15 +29,21 @@ public class AdminJobPostingController {
     private final JobPostingService jobPostingService;
 
     @GetMapping("/active")
-    @Operation(summary = "Listar vagas ativas")
-    public Page<JobPostingResponse> listActive(@PageableDefault(size = 20) Pageable pageable) {
-        return jobPostingService.findAllActive(pageable);
+    @Operation(summary = "Listar vagas ativas com filtros")
+    public Page<JobPostingResponse> listActive(
+            JobPostingFilterRequest filters,
+            @PageableDefault(size = 20) Pageable pageable) {
+
+        return jobPostingService.findAllActive(filters, pageable);
     }
 
     @GetMapping("/inactive")
-    @Operation(summary = "Listar vagas inativas")
-    public Page<JobPostingResponse> listInactive(@PageableDefault(size = 20) Pageable pageable) {
-        return jobPostingService.findAllInactive(pageable);
+    @Operation(summary = "Listar vagas inativas com filtros")
+    public Page<JobPostingResponse> listInactive(
+            JobPostingFilterRequest filters,
+            @PageableDefault(size = 20) Pageable pageable) {
+
+        return jobPostingService.findAllInactive(filters, pageable);
     }
 
     @GetMapping("/{id}")
@@ -52,8 +59,7 @@ public class AdminJobPostingController {
             @RequestParam(required = false) Integer minScore,
             @RequestParam(required = false) String availability,
             @RequestParam(required = false) String search,
-            @PageableDefault(size = 20) Pageable pageable
-    ) {
+            @PageableDefault(size = 20) Pageable pageable) {
         return jobPostingService.findCandidatesForJobPosting(id, minScore, availability, search, pageable);
     }
 
