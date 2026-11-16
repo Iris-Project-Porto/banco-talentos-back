@@ -219,6 +219,15 @@ public class JobPostingService {
         JobPostingStatus oldStatus = jobPosting.getStatus();
 
         jobPosting.setStatus(newStatus);
+
+        if (newStatus == JobPostingStatus.CANCELLED ||
+                newStatus == JobPostingStatus.CLOSED ||
+                newStatus == JobPostingStatus.FILLED) {
+            jobPosting.setActive(false);
+        } else {
+            jobPosting.setActive(true);
+        }
+
         jobPosting.setUpdatedBy(getCurrentUser());
 
         JobPosting updated = jobPostingRepo.save(jobPosting);
