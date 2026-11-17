@@ -1,5 +1,6 @@
 package com.vilt.talentos.controller;
 
+import com.vilt.talentos.dto.JobPostingFilterRequest;
 import com.vilt.talentos.dto.JobPostingRequest;
 import com.vilt.talentos.dto.JobPostingResponse;
 import com.vilt.talentos.entity.ExperienceLevel;
@@ -37,7 +38,9 @@ class AdminJobPostingControllerTest extends BaseControllerTest {
     @DisplayName("Deve listar vagas ativas com sucesso")
     void listActive_Success() throws Exception {
         JobPostingResponse response = createDummyResponse(UUID.randomUUID(), "Projeto", "Squad", true);
-        when(jobPostingService.findAllActive(any(Pageable.class))).thenReturn(new PageImpl<>(List.of(response)));
+
+        when(jobPostingService.findAllActive(any(JobPostingFilterRequest.class), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(response)));
 
         mockMvc.perform(get("/api/v1/admin/job-postings/active"))
                 .andExpect(status().isOk())
@@ -49,7 +52,9 @@ class AdminJobPostingControllerTest extends BaseControllerTest {
     @DisplayName("Deve listar vagas inativas com sucesso")
     void listInactive_Success() throws Exception {
         JobPostingResponse response = createDummyResponse(UUID.randomUUID(), "Projeto", "Squad", false);
-        when(jobPostingService.findAllInactive(any(Pageable.class))).thenReturn(new PageImpl<>(List.of(response)));
+
+        when(jobPostingService.findAllInactive(any(JobPostingFilterRequest.class), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(response)));
 
         mockMvc.perform(get("/api/v1/admin/job-postings/inactive"))
                 .andExpect(status().isOk())
@@ -75,13 +80,13 @@ class AdminJobPostingControllerTest extends BaseControllerTest {
     void create_Success() throws Exception {
         JobPostingRequest request = createDummyRequest(UUID.randomUUID(), UUID.randomUUID());
         JobPostingResponse response = createDummyResponse(UUID.randomUUID(), "Projeto", "Squad", true);
-        
+
         when(jobPostingService.create(any(JobPostingRequest.class))).thenReturn(response);
 
         mockMvc.perform(post("/api/v1/admin/job-postings")
-                        .with(csrf())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(asJsonString(request)))
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(asJsonString(request)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.recruiter").value("Recruiter"));
     }
@@ -97,9 +102,9 @@ class AdminJobPostingControllerTest extends BaseControllerTest {
         when(jobPostingService.update(eq(id), any(JobPostingRequest.class))).thenReturn(response);
 
         mockMvc.perform(put("/api/v1/admin/job-postings/{id}", id)
-                        .with(csrf())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(asJsonString(request)))
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(asJsonString(request)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.description").value("Description"));
     }
@@ -110,7 +115,7 @@ class AdminJobPostingControllerTest extends BaseControllerTest {
     void activate_Success() throws Exception {
         UUID id = UUID.randomUUID();
         mockMvc.perform(patch("/api/v1/admin/job-postings/{id}/activate", id)
-                        .with(csrf()))
+                .with(csrf()))
                 .andExpect(status().isNoContent());
 
         verify(jobPostingService).setActiveStatus(id, true);
@@ -122,7 +127,7 @@ class AdminJobPostingControllerTest extends BaseControllerTest {
     void deactivate_Success() throws Exception {
         UUID id = UUID.randomUUID();
         mockMvc.perform(patch("/api/v1/admin/job-postings/{id}/deactivate", id)
-                        .with(csrf()))
+                .with(csrf()))
                 .andExpect(status().isNoContent());
 
         verify(jobPostingService).setActiveStatus(id, false);
@@ -144,8 +149,7 @@ class AdminJobPostingControllerTest extends BaseControllerTest {
                 Instant.now(),
                 null,
                 false,
-                List.of()
-        );
+                List.of());
     }
 
     private JobPostingResponse createDummyResponse(UUID id, String projectName, String squadName, boolean active) {
@@ -173,7 +177,6 @@ class AdminJobPostingControllerTest extends BaseControllerTest {
                 Instant.now(),
                 null,
                 "admin",
-                null
-        );
+                null);
     }
 }

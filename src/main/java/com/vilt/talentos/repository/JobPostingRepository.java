@@ -6,6 +6,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -14,7 +15,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
-public interface JobPostingRepository extends JpaRepository<JobPosting, UUID> {
+public interface JobPostingRepository extends JpaRepository<JobPosting, UUID>, JpaSpecificationExecutor<JobPosting> {
     @Query("select new com.vilt.talentos.dto.AuditEntityContext(j.id, j.title) "
             + "from JobPosting j where j.id in :ids")
     List<AuditEntityContext> findAuditContextsByIdIn(@Param("ids") Collection<UUID> ids);
