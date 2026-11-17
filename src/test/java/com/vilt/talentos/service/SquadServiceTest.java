@@ -9,6 +9,7 @@ import com.vilt.talentos.entity.Squad;
 import com.vilt.talentos.entity.User;
 import com.vilt.talentos.exception.ResourceNotFoundException;
 import com.vilt.talentos.mapper.SquadMapper;
+import com.vilt.talentos.repository.JobPostingAllocationRepository;
 import com.vilt.talentos.repository.JobPostingRepository;
 import com.vilt.talentos.repository.ProfileRepository;
 import com.vilt.talentos.repository.SquadRepository;
@@ -46,10 +47,16 @@ class SquadServiceTest {
     private JobPostingRepository jobPostingRepo;
 
     @Mock
+    private JobPostingAllocationRepository allocationRepo;
+
+    @Mock
     private UserRepository userRepo;
 
     @Mock
     private SquadMapper mapper;
+
+    @Mock
+    private AuditLogService auditLogService;
 
     @InjectMocks
     private SquadService squadService;

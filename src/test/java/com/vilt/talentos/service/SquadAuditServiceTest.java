@@ -1,6 +1,7 @@
 package com.vilt.talentos.service;
 
 import com.vilt.talentos.dto.SquadRequest;
+import com.vilt.talentos.dto.SquadResponse;
 import com.vilt.talentos.entity.Squad;
 import com.vilt.talentos.entity.User;
 import com.vilt.talentos.mapper.SquadMapper;
@@ -25,6 +26,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -48,6 +50,9 @@ class SquadAuditServiceTest {
         SecurityContextHolder.getContext().setAuthentication(
                 new UsernamePasswordAuthenticationToken(userId.toString(), null));
         lenient().when(userRepo.findById(userId)).thenReturn(Optional.of(User.builder().id(userId).build()));
+        SquadResponse mockResponse = mock(SquadResponse.class);
+        lenient().when(mockResponse.withRecursos(any())).thenReturn(mockResponse);
+        lenient().when(mapper.toResponse(any())).thenReturn(mockResponse);
     }
 
     @AfterEach
