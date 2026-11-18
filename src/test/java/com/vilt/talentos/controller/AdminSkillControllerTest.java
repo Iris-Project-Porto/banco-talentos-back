@@ -17,6 +17,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -42,7 +43,9 @@ class AdminSkillControllerTest extends BaseControllerTest {
         AdminSkillListResponse response = new AdminSkillListResponse(
                 UUID.randomUUID(), "JAVA", SkillType.HARD, true,
                 "Linguagem de programação", SkillCategory.BACKEND,
-                10L, 7.5, List.of(new AvatarResponse(AvatarType.PHOTO, "https://example.com/avatar1.png"))
+                10L, 7.5,
+                List.of(new AvatarResponse(AvatarType.PHOTO, "https://example.com/avatar1.png")),
+                Instant.parse("2026-11-10T10:00:00Z")
         );
         when(skillService.getAdminSkills(isNull(), isNull(), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(response)));
@@ -51,7 +54,8 @@ class AdminSkillControllerTest extends BaseControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[0].name").value("JAVA"))
                 .andExpect(jsonPath("$.content[0].category").value("BACKEND"))
-                .andExpect(jsonPath("$.content[0].resourcesCount").value(10));
+                .andExpect(jsonPath("$.content[0].resourcesCount").value(10))
+                .andExpect(jsonPath("$.content[0].createdAt").value("2026-11-10T10:00:00Z"));
     }
 
     @Test
