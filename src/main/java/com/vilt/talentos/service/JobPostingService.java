@@ -1,7 +1,6 @@
 package com.vilt.talentos.service;
 
 import com.vilt.talentos.dto.JobPostingCandidateMatchResponse;
-import com.vilt.talentos.dto.JobPostingFilterRequest;
 import com.vilt.talentos.dto.JobPostingRequest;
 import com.vilt.talentos.dto.JobPostingResponse;
 import com.vilt.talentos.dto.JobPostingSkillRequest;
@@ -20,6 +19,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.data.jpa.domain.Specification;
+import com.vilt.talentos.dto.JobPostingFilterRequest;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -46,17 +47,38 @@ public class JobPostingService {
     private final JobPostingRepository jobPostingRepository;
 
     public Page<JobPostingResponse> findAllActive(JobPostingFilterRequest filters, Pageable pageable) {
-        Page<JobPostingResponse> page = jobPostingRepo
-                .findAll(JobPostingSpecification.withFilters(true, filters), pageable)
+        // determina que Vagas ativas são apenas OPEN, SCREENING ou ALLOCATING
+        Specification<JobPosting> spec = (root, query, cb) -> root.get("status").in(
+                JobPostingStatus.OPEN,
+                JobPostingStatus.SCREENING,
+                JobPostingStatus.ALLOCATING);
+
+        Page<JobPostingResponse> page = jobPostingRepository.findAll(spec, pageable)
                 .map(mapper::toResponse);
+
+        if (page.isEmpty()) {
+            log.warn("Busca por vagas ativas retornou vazia.");
+            throw new ResourceNotFoundException("Nenhuma vaga ativa encontrada");
+        }
 
         return page;
     }
 
     public Page<JobPostingResponse> findAllInactive(JobPostingFilterRequest filters, Pageable pageable) {
-        Page<JobPostingResponse> page = jobPostingRepo
-                .findAll(JobPostingSpecification.withFilters(false, filters), pageable)
+        // vagas inativas são apenas FILLED, CLOSED ou CANCELLED
+        Specification<JobPosting> spec = (root, query, cb) -> root.get("status").in(
+                JobPostingStatus.FILLED,
+                JobPostingStatus.CLOSED,
+                JobPostingStatus.CANCELLED);
+
+        Page<JobPostingResponse> page = jobPostingRepository.findAll(spec, pageable)
                 .map(mapper::toResponse);
+
+        if (page.isEmpty()) {
+            log.warn("Busca por vagas inativas retornou vazia.");
+            throw new ResourceNotFoundException("Nenhuma vaga inativa encontrada");
+        }
+
         return page;
     }
 
@@ -219,15 +241,6 @@ public class JobPostingService {
         JobPostingStatus oldStatus = jobPosting.getStatus();
 
         jobPosting.setStatus(newStatus);
-
-        if (newStatus == JobPostingStatus.CANCELLED ||
-                newStatus == JobPostingStatus.CLOSED ||
-                newStatus == JobPostingStatus.FILLED) {
-            jobPosting.setActive(false);
-        } else {
-            jobPosting.setActive(true);
-        }
-
         jobPosting.setUpdatedBy(getCurrentUser());
 
         JobPosting updated = jobPostingRepo.save(jobPosting);
