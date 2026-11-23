@@ -24,6 +24,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 @Service
@@ -34,6 +36,8 @@ public class SkillService {
     private final SkillRepository skillRepo;
     private final SkillMapper mapper;
     private final ProfileService profileService;
+
+    private final AuditLogService auditLogService;
 
     public Page<SkillResponse> findAllActive(Pageable pageable) {
         Page<SkillResponse> page = skillRepo.findByActive(true, pageable)
@@ -86,8 +90,7 @@ public class SkillService {
         Pageable sortedPageable = PageRequest.of(
                 pageable.getPageNumber(),
                 pageable.getPageSize(),
-                Sort.by(Sort.Direction.DESC, "createdAt")
-        );
+                Sort.by(Sort.Direction.DESC, "createdAt"));
         Page<Skill> page = skillRepo.findAll(example, sortedPageable);
 
         return page.map(skill -> {
@@ -97,7 +100,6 @@ public class SkillService {
                     .mapToDouble(ps -> ps.getProficiencyLevel())
                     .average()
                     .orElse(0.0);
-
 
             List<AvatarResponse> avatars = skill.getProfileSkills().stream()
                     .filter(ps -> ps.getProfile() != null)
@@ -118,8 +120,7 @@ public class SkillService {
 
                         return new AvatarResponse(
                                 avatarType,
-                                avatar
-                        );
+                                avatar);
                     })
                     .toList();
 
@@ -133,10 +134,11 @@ public class SkillService {
                     resourcesCount,
                     avgProficiency,
                     avatars,
-                    skill.getCreatedAt()
-            );
+                    skill.getCreatedAt());
         });
     }
+
+    @Transactional
     public SkillResponse create(SkillRequest request) {
         String nameUpper = request.name().trim().toUpperCase();
         log.info("Iniciando processo de criação/validação para a skill: '{}'", nameUpper);
@@ -144,13 +146,27 @@ public class SkillService {
         return skillRepo.findByName(nameUpper)
                 .map(existing -> {
                     if (!existing.isActive()) {
-                        log.info("A skill '{}' já existia, mas estava inativa. Reativando e atualizando dados (ID: {}).", nameUpper, existing.getId());
+                        log.info(
+                                "A skill '{}' já existia, mas estava inativa. Reativando e atualizando dados (ID: {}).",
+                                nameUpper, existing.getId());
+
+                        Map<String, Object> oldValue = skillAuditSnapshot(existing);
+
                         existing.setActive(true);
                         existing.setDescription(request.description());
                         existing.setCategory(request.category());
-                        return mapper.toResponse(skillRepo.save(existing));
+
+                        Skill savedExisting = skillRepo.save(existing);
+
+                        Map<String, Object> newValue = skillAuditSnapshot(savedExisting);
+                        auditLogService.record(com.vilt.talentos.entity.AuditOperation.UPDATE, "SKILL",
+                                savedExisting.getId(), null, oldValue, newValue);
+
+                        return mapper.toResponse(savedExisting);
                     }
-                    log.info("A skill '{}' já existe e encontra-se ativa. Retornando registro existente sem alterações.", nameUpper);
+                    log.info(
+                            "A skill '{}' já existe e encontra-se ativa. Retornando registro existente sem alterações.",
+                            nameUpper);
                     return mapper.toResponse(existing);
                 })
                 .orElseGet(() -> {
@@ -159,10 +175,15 @@ public class SkillService {
                     Skill savedSkill = skillRepo.save(skill);
 
                     log.info("Nova skill '{}' criada com sucesso. ID gerado: {}", nameUpper, savedSkill.getId());
+
+                    auditLogService.record(com.vilt.talentos.entity.AuditOperation.CREATE, "SKILL", savedSkill.getId(),
+                            null, null, skillAuditSnapshot(savedSkill));
+
                     return mapper.toResponse(savedSkill);
                 });
     }
 
+    @Transactional
     public SkillResponse update(UUID id, SkillRequest request) {
         log.info("Iniciando atualização da skill ID: {}", id);
 
@@ -182,15 +203,24 @@ public class SkillService {
                     }
                 });
 
+        Map<String, Object> oldValue = skillAuditSnapshot(skill);
+
         mapper.updateEntity(request, skill);
         skill.setName(nameUpper);
 
         Skill updatedSkill = skillRepo.save(skill);
         log.info("Skill ID: {} atualizada com sucesso.", id);
 
+        Map<String, Object> newValue = skillAuditSnapshot(updatedSkill);
+        if (!Objects.equals(oldValue, newValue)) {
+            auditLogService.record(com.vilt.talentos.entity.AuditOperation.UPDATE, "SKILL", updatedSkill.getId(), null,
+                    oldValue, newValue);
+        }
+
         return mapper.toResponse(updatedSkill);
     }
 
+    @Transactional
     public void setActiveStatus(UUID id, boolean active) {
         log.info("Alterando status da skill ID: {} para ativo={}", id, active);
 
@@ -200,10 +230,25 @@ public class SkillService {
                     return new ResourceNotFoundException("Skill não encontrada");
                 });
 
+        if (skill.isActive() == active) {
+            return;
+        }
+
+        Map<String, Object> oldValue = skillAuditSnapshot(skill);
+
         skill.setActive(active);
         skillRepo.save(skill);
 
         log.info("Status da skill ID: {} atualizado com sucesso.", id);
+
+        auditLogService.record(
+                active ? com.vilt.talentos.entity.AuditOperation.UPDATE
+                        : com.vilt.talentos.entity.AuditOperation.DELETE,
+                "SKILL",
+                skill.getId(),
+                null,
+                oldValue,
+                active ? skillAuditSnapshot(skill) : null);
     }
 
     boolean isValidPhotoUrl(String photoUrl) {
@@ -214,5 +259,16 @@ public class SkillService {
         return !trimmed.isEmpty()
                 && !trimmed.equalsIgnoreCase("null")
                 && !trimmed.equalsIgnoreCase("undefined");
+    }
+
+    private Map<String, Object> skillAuditSnapshot(Skill skill) {
+        Map<String, Object> snapshot = new java.util.LinkedHashMap<>();
+        snapshot.put("ID", skill.getId());
+        snapshot.put("Nome", skill.getName());
+        snapshot.put("Tipo", skill.getType());
+        snapshot.put("Categoria", skill.getCategory());
+        snapshot.put("Descrição", skill.getDescription());
+        snapshot.put("Ativa", skill.isActive());
+        return snapshot;
     }
 }

@@ -25,4 +25,7 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, UUID> {
 
     @EntityGraph(attributePaths = {"user", "userAffected"})
     List<AuditLog> findByUserAffectedIdOrderByCreatedAtDesc(UUID userAffectedId);
+
+    @EntityGraph(attributePaths = {"user", "userAffected"})
+    List<AuditLog> findByEntityTypeOrderByCreatedAtDesc(String entityType);
 }

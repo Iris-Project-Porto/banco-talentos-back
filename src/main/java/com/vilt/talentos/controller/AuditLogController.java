@@ -27,8 +27,10 @@ public class AuditLogController {
 
     @GetMapping
     @Operation(summary = "Listar registros de auditoria")
-    public List<AuditLogResponse> list(@RequestParam(required = false) UUID userAffectedId) {
-        return auditLogService.list(userAffectedId);
+    public List<AuditLogResponse> list(
+            @RequestParam(required = false) UUID userAffectedId,
+            @RequestParam(required = false) String entityType) {
+        return auditLogService.list(userAffectedId, entityType);
     }
 
     @GetMapping("/{id}")

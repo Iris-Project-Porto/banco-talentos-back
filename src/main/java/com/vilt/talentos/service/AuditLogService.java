@@ -15,6 +15,7 @@ import com.vilt.talentos.repository.JobPostingRepository;
 import com.vilt.talentos.repository.ProfileRepository;
 import com.vilt.talentos.repository.ProjectRepository;
 import com.vilt.talentos.repository.ResourceEquipmentRepository;
+import com.vilt.talentos.repository.SkillRepository;
 import com.vilt.talentos.repository.SquadRepository;
 import com.vilt.talentos.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -40,6 +41,7 @@ public class AuditLogService {
             "SQUAD", List.of("Nome"),
             "JOB_POSTING", List.of("Título", "Código da vaga"),
             "PROFILE_SKILL", List.of("Skill"),
+            "SKILL", List.of("Nome"),
             "RESOURCE_EQUIPMENT", List.of(
                     "Nome do dispositivo",
                     "Número do patrimônio",
@@ -55,6 +57,7 @@ public class AuditLogService {
     private final SquadRepository squadRepository;
     private final JobPostingRepository jobPostingRepository;
     private final ResourceEquipmentRepository resourceEquipmentRepository;
+    private final SkillRepository skillRepository;
 
     @Transactional(readOnly = true)
     public List<AuditLogResponse> listForCurrentUser() {
@@ -63,13 +66,22 @@ public class AuditLogService {
 
     @Transactional(readOnly = true)
     public List<AuditLogResponse> list(UUID userAffectedId) {
+        return list(userAffectedId, null);
+    }
+
+    @Transactional(readOnly = true)
+    public List<AuditLogResponse> list(UUID userAffectedId, String entityType) {
         User currentUser = getCurrentUser();
         List<AuditLog> auditLogs;
 
         if (currentUser.getRole() == UserRole.ADMIN) {
-            auditLogs = userAffectedId == null
-                    ? auditLogRepository.findAllByOrderByCreatedAtDesc()
-                    : auditLogRepository.findByUserAffectedIdOrderByCreatedAtDesc(userAffectedId);
+            if (entityType != null) {
+                auditLogs = auditLogRepository.findByEntityTypeOrderByCreatedAtDesc(entityType);
+            } else {
+                auditLogs = userAffectedId == null
+                        ? auditLogRepository.findAllByOrderByCreatedAtDesc()
+                        : auditLogRepository.findByUserAffectedIdOrderByCreatedAtDesc(userAffectedId);
+            }
         } else {
             auditLogs = auditLogRepository.findByUserAffectedIdOrderByCreatedAtDesc(currentUser.getId());
         }
@@ -153,6 +165,7 @@ public class AuditLogService {
             case "PROFILE" -> profileRepository.findAuditContextsByProfileIdIn(ids);
             case "PROFILE_SKILL" -> profileRepository.findAuditContextsByProfileSkillIdIn(ids);
             case "RESOURCE_EQUIPMENT" -> resourceEquipmentRepository.findAuditContextsByIdIn(ids);
+            case "SKILL" -> skillRepository.findAuditContextsByIdIn(ids);
             default -> List.of();
         };
     }
@@ -210,6 +223,7 @@ public class AuditLogService {
             case "JOB_POSTING" -> "Vaga (contexto indisponível)";
             case "PROFILE" -> "Perfil (contexto indisponível)";
             case "PROFILE_SKILL" -> "Skill (contexto indisponível)";
+            case "SKILL" -> "Skill do catálogo (contexto indisponível)";
             case "RESOURCE_EQUIPMENT" -> "Equipamento (contexto indisponível)";
             default -> "Entidade (contexto indisponível)";
         };
