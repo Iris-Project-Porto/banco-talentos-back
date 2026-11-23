@@ -57,7 +57,7 @@ public class AdminController {
     }
 
     @GetMapping("/profiles/active")
-    @Operation(summary = "Banco de talentos", description = "Retorna perfis com status ATIVO.")
+    @Operation(summary = "Central de Recursos", description = "Retorna perfis com status ATIVO.")
     public Page<ProfileResponse> ativos(@RequestParam(required = false) String skill, @PageableDefault(size = 20) Pageable pageable) {
         return profileService.getAllWithFilters(DomainStatus.ACTIVE, skill, pageable).map(profileMapper::toResponse);
     }
