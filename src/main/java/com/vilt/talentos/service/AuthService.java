@@ -257,7 +257,7 @@ public class AuthService {
     private void sendVerificationEmail(User user, String verificationCode) {
         emailService.sendTemplatedEmail(
             List.of(user.getEmail()), 
-            "Banco de Talentos - Verificação de E-mail", 
+            "Central de Recursos - Verificação de E-mail", 
             "emails/email-verification", 
             Map.of("userName", user.getName(), "code", verificationCode)
         );
@@ -283,7 +283,7 @@ public class AuthService {
         String resetUrl = buildPasswordResetUrl(email, token);
         emailService.sendTemplatedEmail(
             List.of(user.getEmail()), 
-            "Banco de Talentos - Redefinição de Senha", 
+            "Central de Recursos - Redefinição de Senha", 
             "emails/password-reset", 
             Map.of("userName", user.getName(), "resetUrl", resetUrl)
         );
@@ -427,7 +427,7 @@ public class AuthService {
         
         emailService.sendTemplatedEmail(
             adminEmails, 
-            "Banco de Talentos - Novo Administrador Pendente de Aprovação", 
+            "Central de Recursos - Novo Administrador Pendente de Aprovação", 
             "emails/admin-approval-notification", 
             Map.of("userName", newUser.getName(), "userEmail", newUser.getEmail(), "portalUrl", portalUrl)
         );
