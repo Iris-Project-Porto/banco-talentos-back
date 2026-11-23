@@ -6,6 +6,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -14,20 +15,29 @@ import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
-public interface JobPostingRepository extends JpaRepository<JobPosting, UUID> {
+public interface JobPostingRepository extends JpaRepository<JobPosting, UUID>, JpaSpecificationExecutor<JobPosting> {
+
     @Query("select new com.vilt.talentos.dto.AuditEntityContext(j.id, j.title) "
             + "from JobPosting j where j.id in :ids")
     List<AuditEntityContext> findAuditContextsByIdIn(@Param("ids") Collection<UUID> ids);
 
-    @EntityGraph(attributePaths = {"project", "squad", "skills", "skills.skill"})
+    @Query("SELECT j FROM JobPosting j WHERE j.status IN ('OPEN', 'SCREENING', 'ALLOCATING')")
+    @EntityGraph(attributePaths = { "project", "squad", "skills", "skills.skill" })
+    Page<JobPosting> findActiveJobPostings(Pageable pageable);
+
+    @Query("SELECT j FROM JobPosting j WHERE j.status IN ('FILLED', 'CLOSED', 'CANCELLED')")
+    @EntityGraph(attributePaths = { "project", "squad", "skills", "skills.skill" })
+    Page<JobPosting> findInactiveJobPostings(Pageable pageable);
+
+    @EntityGraph(attributePaths = { "project", "squad", "skills", "skills.skill" })
     Page<JobPosting> findByActive(boolean active, Pageable pageable);
 
     @Override
-    @EntityGraph(attributePaths = {"project", "squad", "skills", "skills.skill"})
+    @EntityGraph(attributePaths = { "project", "squad", "skills", "skills.skill" })
     Page<JobPosting> findAll(Pageable pageable);
 
     @Override
-    @EntityGraph(attributePaths = {"project", "squad", "skills", "skills.skill"})
+    @EntityGraph(attributePaths = { "project", "squad", "skills", "skills.skill" })
     java.util.Optional<JobPosting> findById(UUID id);
 
     // Desassocia as vagas da squad antes de sua exclusão

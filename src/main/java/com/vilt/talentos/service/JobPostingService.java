@@ -19,6 +19,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.data.jpa.domain.Specification;
+import com.vilt.talentos.dto.JobPostingFilterRequest;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -44,8 +46,14 @@ public class JobPostingService {
     private final JobPostingSkillRepository jobPostingSkillRepository;
     private final JobPostingRepository jobPostingRepository;
 
-    public Page<JobPostingResponse> findAllActive(Pageable pageable) {
-        Page<JobPostingResponse> page = jobPostingRepo.findByActive(true, pageable)
+    public Page<JobPostingResponse> findAllActive(JobPostingFilterRequest filters, Pageable pageable) {
+        // determina que Vagas ativas são apenas OPEN, SCREENING ou ALLOCATING
+        Specification<JobPosting> spec = (root, query, cb) -> root.get("status").in(
+                JobPostingStatus.OPEN,
+                JobPostingStatus.SCREENING,
+                JobPostingStatus.ALLOCATING);
+
+        Page<JobPostingResponse> page = jobPostingRepository.findAll(spec, pageable)
                 .map(mapper::toResponse);
 
         if (page.isEmpty()) {
@@ -56,14 +64,21 @@ public class JobPostingService {
         return page;
     }
 
-    public Page<JobPostingResponse> findAllInactive(Pageable pageable) {
-        Page<JobPostingResponse> page = jobPostingRepo.findByActive(false, pageable)
+    public Page<JobPostingResponse> findAllInactive(JobPostingFilterRequest filters, Pageable pageable) {
+        // vagas inativas são apenas FILLED, CLOSED ou CANCELLED
+        Specification<JobPosting> spec = (root, query, cb) -> root.get("status").in(
+                JobPostingStatus.FILLED,
+                JobPostingStatus.CLOSED,
+                JobPostingStatus.CANCELLED);
+
+        Page<JobPostingResponse> page = jobPostingRepository.findAll(spec, pageable)
                 .map(mapper::toResponse);
 
         if (page.isEmpty()) {
             log.warn("Busca por vagas inativas retornou vazia.");
             throw new ResourceNotFoundException("Nenhuma vaga inativa encontrada");
         }
+
         return page;
     }
 
@@ -125,8 +140,7 @@ public class JobPostingService {
         if (jobPosting.getStatus() == JobPostingStatus.CANCELLED
                 || jobPosting.getStatus() == JobPostingStatus.FILLED) {
             throw new ConflictException(
-                    "Vagas canceladas ou preenchidas só podem ter o status alterado."
-            );
+                    "Vagas canceladas ou preenchidas só podem ter o status alterado.");
         }
 
         JobPostingResponse oldValue = mapper.toResponse(jobPosting);
@@ -299,8 +313,7 @@ public class JobPostingService {
         if (jobPosting.getStatus() == JobPostingStatus.CANCELLED
                 || jobPosting.getStatus() == JobPostingStatus.FILLED) {
             throw new ConflictException(
-                    "Vagas canceladas ou preenchidas não podem ser ativadas ou desativadas."
-            );
+                    "Vagas canceladas ou preenchidas não podem ser ativadas ou desativadas.");
         }
 
         Boolean oldActive = jobPosting.getActive();

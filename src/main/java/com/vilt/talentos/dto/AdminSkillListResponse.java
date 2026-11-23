@@ -3,6 +3,7 @@ package com.vilt.talentos.dto;
 import com.vilt.talentos.entity.SkillCategory;
 import com.vilt.talentos.entity.SkillType;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -15,5 +16,6 @@ public record AdminSkillListResponse(
     SkillCategory category,
     long resourcesCount,
     double averageProficiency,
-    List<AvatarResponse> avatars
+    List<AvatarResponse> avatars,
+    Instant createdAt
 ) {}

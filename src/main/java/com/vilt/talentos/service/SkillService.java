@@ -17,7 +17,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Example;
 import org.springframework.data.domain.ExampleMatcher;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -85,7 +87,11 @@ public class SkillService {
                 .withIgnorePaths("id", "type", "profileSkills");
 
         Example<Skill> example = Example.of(filterSample, matcher);
-        Page<Skill> page = skillRepo.findAll(example, pageable);
+        Pageable sortedPageable = PageRequest.of(
+                pageable.getPageNumber(),
+                pageable.getPageSize(),
+                Sort.by(Sort.Direction.DESC, "createdAt"));
+        Page<Skill> page = skillRepo.findAll(example, sortedPageable);
 
         return page.map(skill -> {
             long resourcesCount = skill.getProfileSkills().size();
@@ -127,7 +133,8 @@ public class SkillService {
                     skill.getCategory(),
                     resourcesCount,
                     avgProficiency,
-                    avatars);
+                    avatars,
+                    skill.getCreatedAt());
         });
     }
 

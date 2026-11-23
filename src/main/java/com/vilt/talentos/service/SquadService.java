@@ -33,6 +33,7 @@ public class SquadService {
     private final SquadRepository squadRepo;
     private final ProfileRepository profileRepo;
     private final JobPostingRepository jobPostingRepo;
+    private final JobPostingAllocationRepository allocationRepo;
     private final UserRepository userRepo;
     private final SquadMapper mapper;
     private final AuditLogService auditLogService;
@@ -165,11 +166,26 @@ public class SquadService {
     }
 
     private void syncRecursos(Squad squad, List<UUID> recursoIds, List<SquadResourceInput> recursos) {
+        if (recursos == null && recursoIds == null) {
+            return;
+        }
+
+        List<UUID> targetIds = recursos != null
+                ? recursos.stream().map(SquadResourceInput::id).filter(Objects::nonNull).toList()
+                : recursoIds;
+
+        if (allocationRepo != null) {
+            if (targetIds == null || targetIds.isEmpty()) {
+                allocationRepo.deactivateBySquadId(squad.getId());
+            } else {
+                allocationRepo.deactivateBySquadIdAndProfileIdNotIn(squad.getId(), targetIds);
+            }
+        }
+
         if (recursos != null) {
             profileRepo.clearAllocationSquad(squad.getId());
             if (!recursos.isEmpty()) {
-                List<UUID> ids = recursos.stream().map(SquadResourceInput::id).toList();
-                List<Profile> profiles = profileRepo.findAllById(ids);
+                List<Profile> profiles = profileRepo.findAllById(targetIds);
                 Map<UUID, String> jobTitleMap = recursos.stream()
                         .filter(r -> r.id() != null && r.jobTitle() != null)
                         .collect(Collectors.toMap(SquadResourceInput::id, SquadResourceInput::jobTitle, (a, b) -> b));
@@ -267,6 +283,9 @@ public class SquadService {
                     log.warn("Falha ao deletar: Squad ID '{}' não encontrada.", id);
                     return new ResourceNotFoundException("Squad não encontrada");
                 });
+        if (allocationRepo != null) {
+            allocationRepo.deactivateBySquadId(id);
+        }
         Map<String, Object> oldValue = squadAuditSnapshot(squad);
         profileRepo.clearAllocationSquad(id);
         jobPostingRepo.clearSquad(id);
