@@ -47,39 +47,15 @@ public class JobPostingService {
     private final JobPostingRepository jobPostingRepository;
 
     public Page<JobPostingResponse> findAllActive(JobPostingFilterRequest filters, Pageable pageable) {
-        // determina que Vagas ativas são apenas OPEN, SCREENING ou ALLOCATING
-        Specification<JobPosting> spec = (root, query, cb) -> root.get("status").in(
-                JobPostingStatus.OPEN,
-                JobPostingStatus.SCREENING,
-                JobPostingStatus.ALLOCATING);
-
-        Page<JobPostingResponse> page = jobPostingRepository.findAll(spec, pageable)
+        Specification<JobPosting> spec = JobPostingSpecification.withFilters(true, filters);
+        return jobPostingRepository.findAll(spec, pageable)
                 .map(mapper::toResponse);
-
-        if (page.isEmpty()) {
-            log.warn("Busca por vagas ativas retornou vazia.");
-            throw new ResourceNotFoundException("Nenhuma vaga ativa encontrada");
-        }
-
-        return page;
     }
 
     public Page<JobPostingResponse> findAllInactive(JobPostingFilterRequest filters, Pageable pageable) {
-        // vagas inativas são apenas FILLED, CLOSED ou CANCELLED
-        Specification<JobPosting> spec = (root, query, cb) -> root.get("status").in(
-                JobPostingStatus.FILLED,
-                JobPostingStatus.CLOSED,
-                JobPostingStatus.CANCELLED);
-
-        Page<JobPostingResponse> page = jobPostingRepository.findAll(spec, pageable)
+        Specification<JobPosting> spec = JobPostingSpecification.withFilters(false, filters);
+        return jobPostingRepository.findAll(spec, pageable)
                 .map(mapper::toResponse);
-
-        if (page.isEmpty()) {
-            log.warn("Busca por vagas inativas retornou vazia.");
-            throw new ResourceNotFoundException("Nenhuma vaga inativa encontrada");
-        }
-
-        return page;
     }
 
     public JobPostingResponse findById(UUID id) {
