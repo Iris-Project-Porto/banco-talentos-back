@@ -1,4 +1,4 @@
-# ÍRIS - Central de Talentos API
+# ÍRIS - Central de Recursos API
 
 API REST responsável pelo gerenciamento do Central de Recursos da plataforma ÍRIS.
 
