@@ -1,6 +1,6 @@
-# ÍRIS - Banco de Talentos API
+# ÍRIS - Central de Recursos API
 
-API REST responsável pelo gerenciamento do Banco de Talentos da plataforma ÍRIS.
+API REST responsável pelo gerenciamento do Central de Recursos da plataforma ÍRIS.
 
 O sistema permite o cadastro e autenticação de colaboradores, gerenciamento de perfis profissionais, avaliação automática de senioridade, administração de usuários, grupos, formulários dinâmicos e submissões, além do envio de notificações por e-mail.
 
@@ -372,7 +372,7 @@ para acessar recursos protegidos.
 5. Usuário cria ou atualiza seu perfil.
 6. Perfil é enviado para aprovação administrativa.
 7. Administrador revisa e aprova o perfil.
-8. Perfil passa a compor o Banco de Talentos.
+8. Perfil passa a compor o Central de Recursos.
 9. Dashboards e consultas administrativas passam a considerar o perfil aprovado.
 
 ---
@@ -383,4 +383,4 @@ para acessar recursos protegidos.
 - Caio Gaspar
 - Caique Lima
 
-Projeto desenvolvido para a plataforma ÍRIS - Banco de Talentos Porto.
+Projeto desenvolvido para a plataforma ÍRIS - Central de Recursos Porto.
