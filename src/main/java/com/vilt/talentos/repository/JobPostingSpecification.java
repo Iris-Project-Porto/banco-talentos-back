@@ -2,6 +2,8 @@ package com.vilt.talentos.repository;
 
 import com.vilt.talentos.dto.JobPostingFilterRequest;
 import com.vilt.talentos.entity.JobPosting;
+import com.vilt.talentos.entity.JobPostingStatus;
+
 import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Predicate;
 import org.springframework.data.jpa.domain.Specification;
@@ -23,13 +25,25 @@ public class JobPostingSpecification {
                 query.distinct(true);
             }
 
-            predicates.add(cb.equal(root.get("active"), active));
+            if (active) {
+                predicates.add(root.get("status").in(
+                        JobPostingStatus.OPEN,
+                        JobPostingStatus.SCREENING,
+                        JobPostingStatus.ALLOCATING));
+            } else {
+                predicates.add(root.get("status").in(
+                        JobPostingStatus.FILLED,
+                        JobPostingStatus.CLOSED,
+                        JobPostingStatus.CANCELLED));
+            }
 
-            if (filters == null) return cb.and(predicates.toArray(new Predicate[0]));
+            if (filters == null)
+                return cb.and(predicates.toArray(new Predicate[0]));
 
-            //busca textual
+            // busca textual
             if (StringUtils.hasText(filters.vacancyCode())) {
-                predicates.add(cb.like(cb.lower(root.get("vacancyCode")), "%" + filters.vacancyCode().toLowerCase() + "%"));
+                predicates.add(
+                        cb.like(cb.lower(root.get("vacancyCode")), "%" + filters.vacancyCode().toLowerCase() + "%"));
             }
             if (StringUtils.hasText(filters.title())) {
                 predicates.add(cb.like(cb.lower(root.get("title")), "%" + filters.title().toLowerCase() + "%"));
@@ -54,17 +68,17 @@ public class JobPostingSpecification {
                 predicates.add(cb.equal(root.get("modality"), filters.modality()));
             }
 
-            // Filtro multiplo para Skills 
+            // Filtro multiplo para Skills
             if (filters.skills() != null && !filters.skills().isEmpty()) {
-                var skillsJoin = root.join("skills").join("skill"); 
-                
+                var skillsJoin = root.join("skills").join("skill");
+
                 List<Predicate> skillPredicates = new ArrayList<>();
-                
+
                 for (String skill : filters.skills()) {
                     String likePattern = "%" + skill.toLowerCase().trim() + "%";
                     skillPredicates.add(cb.like(cb.lower(skillsJoin.get("name")), likePattern));
                 }
-                
+
                 predicates.add(cb.or(skillPredicates.toArray(new Predicate[0])));
             }
 
