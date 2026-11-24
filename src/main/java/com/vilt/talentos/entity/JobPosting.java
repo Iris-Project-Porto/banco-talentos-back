@@ -70,4 +70,13 @@ public class JobPosting extends BaseAuditableEntity {
     @OneToMany(mappedBy = "jobPosting", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @Builder.Default
     private List<JobPostingSkill> skills = new ArrayList<>();
+
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(
+            name = "job_posting_selected_candidates",
+            joinColumns = @JoinColumn(name = "job_posting_id")
+    )
+    @Column(name = "candidate_id")
+    @Builder.Default
+    private List<UUID> selectedCandidateIds = new ArrayList<>();
 }

@@ -33,6 +33,7 @@ public interface JobPostingMapper {
     @Mapping(target = "project", ignore = true)
     @Mapping(target = "squad", ignore = true)
     @Mapping(target = "skills", ignore = true)
+    @Mapping(target = "selectedCandidateIds", ignore = true)
 
     @Mapping(target = "status", source = "status", qualifiedByName = "stringToStatus")
     @Mapping(target = "createdAt", ignore = true)
@@ -47,6 +48,7 @@ public interface JobPostingMapper {
     @Mapping(target = "project", ignore = true)
     @Mapping(target = "squad", ignore = true)
     @Mapping(target = "skills", ignore = true)
+    @Mapping(target = "selectedCandidateIds", ignore = true)
     @Mapping(target = "status", source = "status", qualifiedByName = "stringToStatus")
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)

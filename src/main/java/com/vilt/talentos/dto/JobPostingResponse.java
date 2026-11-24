@@ -31,6 +31,7 @@ public record JobPostingResponse(
         Boolean isUrgent,
         Boolean active,
         List<JobPostingSkillResponse> skills,
+        List<UUID> selectedCandidateIds,
         Instant createdAt,
         Instant updatedAt,
         String createdBy,
