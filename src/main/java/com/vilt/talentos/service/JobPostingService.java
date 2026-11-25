@@ -89,6 +89,7 @@ public class JobPostingService {
         jobPosting.setCreatedBy(getCurrentUser());
 
         reconcileSkills(jobPosting, request.skills());
+        reconcileSelectedCandidates(jobPosting, request.selectedCandidateIds());
 
         JobPosting savedJobPosting = jobPostingRepo.save(jobPosting);
         log.info("Vaga criada com sucesso. ID gerado: {}", savedJobPosting.getId());
@@ -139,6 +140,7 @@ public class JobPostingService {
         jobPosting.setUpdatedBy(getCurrentUser());
 
         reconcileSkills(jobPosting, request.skills());
+        reconcileSelectedCandidates(jobPosting, request.selectedCandidateIds());
 
         JobPosting updatedJobPosting = jobPostingRepo.save(jobPosting);
         log.info("Vaga ID: {} atualizada com sucesso.", id);
@@ -186,6 +188,7 @@ public class JobPostingService {
                     .map(this::jobPostingSkillAuditSnapshot)
                     .toList());
         }
+        putIfNotNull(snapshot, "Candidatos selecionados", jobPosting.selectedCandidateIds());
         putIfNotNull(snapshot, "Criado em", jobPosting.createdAt());
         putIfNotNull(snapshot, "Atualizado em", jobPosting.updatedAt());
         putIfNotNull(snapshot, "Criado por", jobPosting.createdBy());
@@ -229,6 +232,16 @@ public class JobPostingService {
                 Map.of("status", updated.getStatus()));
 
         return mapper.toResponse(updated);
+    }
+
+    private void reconcileSelectedCandidates(JobPosting jobPosting, List<UUID> selectedCandidateIds) {
+        if (jobPosting.getSelectedCandidateIds() == null) {
+            jobPosting.setSelectedCandidateIds(new ArrayList<>());
+        }
+        jobPosting.getSelectedCandidateIds().clear();
+        if (selectedCandidateIds != null) {
+            jobPosting.getSelectedCandidateIds().addAll(selectedCandidateIds);
+        }
     }
 
     private void reconcileSkills(JobPosting jobPosting, List<JobPostingSkillRequest> skillRequests) {

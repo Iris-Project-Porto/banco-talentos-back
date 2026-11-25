@@ -157,7 +157,7 @@ class AdminJobPostingControllerTest extends BaseControllerTest {
                                 jobId, "VAC-001", "Title", "Projeto", UUID.randomUUID(), "Squad", UUID.randomUUID(),
                                 ExperienceLevel.SENIOR, "Senior", "Description", "Recruiter", 4,
                                 JobPostingStatus.FILLED, "Remote", "Notes", Instant.now(), null, false, true,
-                                List.of(), Instant.now(), Instant.now(), "admin", "admin");
+                                List.of(), List.of(), Instant.now(), Instant.now(), "admin", "admin");
 
                 JobPostingAllocationResponse allocationResponse = new JobPostingAllocationResponse(
                                 UUID.randomUUID(), jobId, resourceId, "Diogo", filledResponse.projectId(), "Projeto",
@@ -192,7 +192,7 @@ class AdminJobPostingControllerTest extends BaseControllerTest {
                                 jobId, "VAC-001", "Title", "Projeto", UUID.randomUUID(), "Squad", UUID.randomUUID(),
                                 ExperienceLevel.SENIOR, "Senior", "Description", "Recruiter", 4,
                                 JobPostingStatus.FILLED, "Remote", "Notes", Instant.now(), null, false, true,
-                                List.of(), Instant.now(), Instant.now(), "admin", "admin");
+                                List.of(), List.of(), Instant.now(), Instant.now(), "admin", "admin");
 
                 JobPostingAllocationResponse allocationResponse = new JobPostingAllocationResponse(
                                 UUID.randomUUID(), jobId, resourceId, "Diogo", filledResponse.projectId(), "Projeto",
@@ -260,6 +260,7 @@ class AdminJobPostingControllerTest extends BaseControllerTest {
                                 Instant.now(),
                                 null,
                                 false,
+                                List.of(),
                                 List.of());
         }
 
@@ -284,6 +285,7 @@ class AdminJobPostingControllerTest extends BaseControllerTest {
                                 null,
                                 false,
                                 active,
+                                List.of(),
                                 List.of(),
                                 Instant.now(),
                                 null,
