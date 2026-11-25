@@ -5,6 +5,8 @@ import com.vilt.talentos.dto.SquadResponse;
 import com.vilt.talentos.dto.SquadResourceInput;
 import com.vilt.talentos.dto.SquadResourceResponse;
 import com.vilt.talentos.entity.Profile;
+import com.vilt.talentos.entity.Project;
+import com.vilt.talentos.entity.ResourceStatus;
 import com.vilt.talentos.entity.Squad;
 import com.vilt.talentos.entity.User;
 import com.vilt.talentos.exception.ResourceNotFoundException;
@@ -116,10 +118,11 @@ class SquadServiceTest {
         assertNotNull(response);
         assertEquals("Alpha Squad", response.name());
 
-        verify(profileRepo).clearAllocationSquad(squadId);
         verify(profileRepo).findAllById(recursoIds);
         assertEquals(squad, p1.getAllocationSquad());
         assertEquals(squad, p2.getAllocationSquad());
+        assertEquals(ResourceStatus.ALLOCATED, p1.getResourceStatus());
+        assertEquals(ResourceStatus.ALLOCATED, p2.getResourceStatus());
         verify(profileRepo).saveAll(profiles);
     }
 
@@ -142,7 +145,6 @@ class SquadServiceTest {
         SquadResponse response = squadService.create(request);
 
         assertNotNull(response);
-        verify(profileRepo, never()).clearAllocationSquad(any());
         verify(profileRepo, never()).findAllById(any());
         verify(profileRepo, never()).saveAll(any());
     }
@@ -166,7 +168,7 @@ class SquadServiceTest {
         SquadResponse response = squadService.create(request);
 
         assertNotNull(response);
-        verify(profileRepo).clearAllocationSquad(squadId);
+        verify(profileRepo, never()).clearAllocationSquad(squadId);
         verify(profileRepo, never()).findAllById(any());
         verify(profileRepo, never()).saveAll(any());
     }
@@ -204,10 +206,74 @@ class SquadServiceTest {
         assertEquals("Squad Atualizada", response.name());
 
         verify(mapper).updateEntity(request, existingSquad);
-        verify(profileRepo).clearAllocationSquad(squadId);
+        verify(profileRepo, atLeastOnce()).findAllByAllocationSquadId(squadId);
         verify(profileRepo).findAllById(recursoIds);
         assertEquals(existingSquad, profile.getAllocationSquad());
+        assertEquals(ResourceStatus.ALLOCATED, profile.getResourceStatus());
         verify(profileRepo).saveAll(profiles);
+    }
+
+    @Test
+    @DisplayName("Deve retornar o recurso para AVAILABLE ao removê-lo da squad")
+    void update_Success_RemovesResourceAndSetsAvailable() {
+        UUID squadId = UUID.randomUUID();
+        UUID profileId = UUID.randomUUID();
+        Squad existingSquad = Squad.builder().id(squadId).name("Squad").build();
+        Profile profile = Profile.builder()
+                .id(profileId)
+                .allocationSquad(existingSquad)
+                .resourceStatus(ResourceStatus.ALLOCATED)
+                .allocationStatus("Alocado Integral (100%)")
+                .build();
+        SquadRequest request = new SquadRequest("Squad", "Desc", "Coord", "GP", List.of());
+        SquadResponse expectedResponse = new SquadResponse(
+                squadId, "Squad", "Desc", "Coord", "GP", null, null, true, Instant.now(), null, "Admin User", null
+        );
+
+        when(squadRepo.findById(squadId)).thenReturn(Optional.of(existingSquad));
+        when(userRepo.findById(userId)).thenReturn(Optional.of(mockUser));
+        when(squadRepo.save(any(Squad.class))).thenReturn(existingSquad);
+        when(profileRepo.findAllByAllocationSquadId(squadId))
+                .thenAnswer(invocation -> profile.getAllocationSquad() == null ? List.of() : List.of(profile));
+        when(mapper.toResponse(existingSquad)).thenReturn(expectedResponse);
+
+        squadService.update(squadId, request);
+
+        assertNull(profile.getAllocationSquad());
+        assertEquals(ResourceStatus.AVAILABLE, profile.getResourceStatus());
+        assertEquals("Disponível (Bench)", profile.getAllocationStatus());
+        verify(allocationRepo).deactivateBySquadId(squadId);
+        verify(profileRepo).saveAll(List.of(profile));
+    }
+
+    @Test
+    @DisplayName("Deve manter ALLOCATED quando o recurso removido ainda possui alocação em projeto")
+    void update_RemovesSquadButKeepsStatusWhenProjectAllocationRemains() {
+        UUID squadId = UUID.randomUUID();
+        UUID profileId = UUID.randomUUID();
+        Squad existingSquad = Squad.builder().id(squadId).name("Squad").build();
+        Profile profile = Profile.builder()
+                .id(profileId)
+                .allocationSquad(existingSquad)
+                .allocationProject(Project.builder().id(UUID.randomUUID()).name("Projeto").build())
+                .resourceStatus(ResourceStatus.ALLOCATED)
+                .build();
+        SquadRequest request = new SquadRequest("Squad", "Desc", "Coord", "GP", List.of());
+        SquadResponse expectedResponse = new SquadResponse(
+                squadId, "Squad", "Desc", "Coord", "GP", null, null, true, Instant.now(), null, "Admin User", null
+        );
+
+        when(squadRepo.findById(squadId)).thenReturn(Optional.of(existingSquad));
+        when(userRepo.findById(userId)).thenReturn(Optional.of(mockUser));
+        when(squadRepo.save(any(Squad.class))).thenReturn(existingSquad);
+        when(profileRepo.findAllByAllocationSquadId(squadId))
+                .thenAnswer(invocation -> profile.getAllocationSquad() == null ? List.of() : List.of(profile));
+        when(mapper.toResponse(existingSquad)).thenReturn(expectedResponse);
+
+        squadService.update(squadId, request);
+
+        assertNull(profile.getAllocationSquad());
+        assertEquals(ResourceStatus.ALLOCATED, profile.getResourceStatus());
     }
 
     @Test
@@ -228,12 +294,20 @@ class SquadServiceTest {
     void deleteSquad_Success() {
         UUID squadId = UUID.randomUUID();
         Squad squad = Squad.builder().id(squadId).name("Squad Delete").build();
+        Profile profile = Profile.builder()
+                .id(UUID.randomUUID())
+                .allocationSquad(squad)
+                .resourceStatus(ResourceStatus.ALLOCATED)
+                .build();
 
         when(squadRepo.findById(squadId)).thenReturn(Optional.of(squad));
+        when(profileRepo.findAllByAllocationSquadId(squadId)).thenReturn(List.of(profile));
 
         squadService.deleteSquad(squadId);
 
-        verify(profileRepo).clearAllocationSquad(squadId);
+        assertNull(profile.getAllocationSquad());
+        assertEquals(ResourceStatus.AVAILABLE, profile.getResourceStatus());
+        verify(profileRepo).saveAll(List.of(profile));
         verify(jobPostingRepo).clearSquad(squadId);
         verify(squadRepo).delete(squad);
     }
@@ -302,9 +376,9 @@ class SquadServiceTest {
         SquadResponse response = squadService.update(squadId, request);
 
         assertNotNull(response);
-        verify(profileRepo).clearAllocationSquad(squadId);
         verify(profileRepo).findAllById(List.of(profileId));
         assertEquals(existingSquad, profile.getAllocationSquad());
+        assertEquals(ResourceStatus.ALLOCATED, profile.getResourceStatus());
         assertEquals("Tech Lead", profile.getJobTitle());
         verify(profileRepo).saveAll(profiles);
     }

@@ -15,6 +15,7 @@ import com.vilt.talentos.entity.RegistrationStatus;
 import com.vilt.talentos.entity.ResourceStatus;
 import com.vilt.talentos.entity.Skill;
 import com.vilt.talentos.entity.SkillType;
+import com.vilt.talentos.entity.Squad;
 import com.vilt.talentos.entity.User;
 import com.vilt.talentos.entity.AuditOperation;
 import com.vilt.talentos.exception.BadRequestException;
@@ -41,6 +42,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
@@ -413,6 +415,58 @@ class ProfileServiceTest {
         assertEquals(RegistrationStatus.NOT_REQUIRED, result.getRegistrationStatus());
         assertEquals(ResourceStatus.AVAILABLE, result.getResourceStatus());
         verify(allocationRepo).deactivateByProfileId(profileId);
+    }
+
+    @Test
+    void adminUpdate_shouldKeepResourceAllocatedWhileAssignedToSquad() {
+        UUID profileId = UUID.randomUUID();
+        Squad squad = Squad.builder().id(UUID.randomUUID()).name("Squad").build();
+        Profile profile = Profile.builder()
+                .id(profileId)
+                .user(User.builder().email("test@vilt-group.com").build())
+                .status(DomainStatus.ACTIVE)
+                .registrationStatus(RegistrationStatus.NOT_REQUIRED)
+                .resourceStatus(ResourceStatus.AVAILABLE)
+                .allocationSquad(squad)
+                .skills(new java.util.ArrayList<>())
+                .build();
+        AdminUpdateRequest req = AdminUpdateRequest.builder()
+                .registrationStatus("REQUESTED_VIA_TICKET")
+                .allocationSquadId(squad.getId())
+                .build();
+
+        when(profileRepo.findById(profileId)).thenReturn(Optional.of(profile));
+        when(squadRepo.findById(squad.getId())).thenReturn(Optional.of(squad));
+        when(profileRepo.save(any(Profile.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        Profile result = profileService.adminUpdate(profileId, req);
+
+        assertEquals(ResourceStatus.ALLOCATED, result.getResourceStatus());
+        assertEquals(squad, result.getAllocationSquad());
+    }
+
+    @Test
+    void adminUpdate_shouldReturnResourceToAvailableWhenRemovingItsSquad() {
+        UUID profileId = UUID.randomUUID();
+        Squad squad = Squad.builder().id(UUID.randomUUID()).name("Squad").build();
+        Profile profile = Profile.builder()
+                .id(profileId)
+                .user(User.builder().email("test@vilt-group.com").build())
+                .status(DomainStatus.ACTIVE)
+                .registrationStatus(RegistrationStatus.NOT_REQUIRED)
+                .resourceStatus(ResourceStatus.ALLOCATED)
+                .allocationSquad(squad)
+                .skills(new java.util.ArrayList<>())
+                .build();
+        AdminUpdateRequest req = AdminUpdateRequest.builder().build();
+
+        when(profileRepo.findById(profileId)).thenReturn(Optional.of(profile));
+        when(profileRepo.save(any(Profile.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        Profile result = profileService.adminUpdate(profileId, req);
+
+        assertNull(result.getAllocationSquad());
+        assertEquals(ResourceStatus.AVAILABLE, result.getResourceStatus());
     }
 
     @Test
