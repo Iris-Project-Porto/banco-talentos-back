@@ -33,6 +33,9 @@ import java.util.stream.Collectors;
 @Slf4j
 public class ProfileService {
 
+    private static final String FULLY_ALLOCATED_STATUS = "Alocado Integral (100%)";
+    private static final String BENCH_STATUS = "Disponível (Bench)";
+
     private final ProfileRepository profileRepo;
     private final SkillRepository skillRepo;
     private final UserRepository userRepo;
@@ -311,6 +314,7 @@ public class ProfileService {
         List<Map<String, Object>> oldSkills = profileSkillSnapshots(profile);
         DomainStatus oldStatus = profile.getStatus();
         boolean wasAllocatedToProject = profile.getAllocationProject() != null;
+        boolean wasAllocatedToSquad = profile.getAllocationSquad() != null;
         
         if (req.status() != null) {
             try {
@@ -374,7 +378,11 @@ public class ProfileService {
             profile.setAllocationSquad(null);
         }
 
-        applyResourceStatusAutomation(profile, wasAllocatedToProject);
+        applyResourceStatusAutomation(
+                profile,
+                wasAllocatedToProject,
+                wasAllocatedToSquad,
+                req.registrationStatus() != null);
 
         if (req.groupId() != null) {
             UUID oldGroupId = profile.getUser().getGroup() == null
@@ -423,7 +431,11 @@ public class ProfileService {
         return saved;
     }
 
-    private void applyResourceStatusAutomation(Profile profile, boolean wasAllocatedToProject) {
+    private void applyResourceStatusAutomation(
+            Profile profile,
+            boolean wasAllocatedToProject,
+            boolean wasAllocatedToSquad,
+            boolean registrationStatusChanged) {
         boolean deallocated = wasAllocatedToProject && profile.getAllocationProject() == null;
         if (deallocated) {
             if (allocationRepo != null && profile.getId() != null) {
@@ -433,9 +445,31 @@ public class ProfileService {
             profile.setRegistrationNumber(null);
             profile.setRegistrationRequestedAt(null);
             profile.setRegistrationNotes(null);
-            profile.setResourceStatus(ResourceStatus.AVAILABLE);
-            log.info("Perfil {}: desalocado — matrícula resetada para NOT_REQUIRED e status do recurso AVAILABLE.",
+            resetAllocationStatusLabel(profile);
+            profile.setResourceStatus(
+                    profile.getAllocationSquad() != null ? ResourceStatus.ALLOCATED : ResourceStatus.AVAILABLE);
+            log.info("Perfil {}: desalocado — matrícula resetada e status do recurso sincronizado.",
                     profile.getId());
+            return;
+        }
+
+        if (profile.getAllocationSquad() != null) {
+            profile.setResourceStatus(ResourceStatus.ALLOCATED);
+            return;
+        }
+
+        if (wasAllocatedToSquad && profile.getAllocationSquad() == null) {
+            boolean hasActiveAllocation = allocationRepo != null
+                    && profile.getId() != null
+                    && allocationRepo.existsByProfileIdAndActiveTrue(profile.getId());
+            if (!hasActiveAllocation) {
+                resetAllocationStatusLabel(profile);
+            }
+            profile.setResourceStatus(hasActiveAllocation ? ResourceStatus.ALLOCATED : ResourceStatus.AVAILABLE);
+            return;
+        }
+
+        if (!registrationStatusChanged) {
             return;
         }
 
@@ -449,6 +483,12 @@ public class ProfileService {
         profile.setResourceStatus(next);
         log.debug("Perfil {}: status do recurso sincronizado para {} a partir da matrícula {}.",
                 profile.getId(), next, profile.getRegistrationStatus());
+    }
+
+    private void resetAllocationStatusLabel(Profile profile) {
+        if (FULLY_ALLOCATED_STATUS.equalsIgnoreCase(profile.getAllocationStatus())) {
+            profile.setAllocationStatus(BENCH_STATUS);
+        }
     }
 
     private void reconcileSkills(Profile profile, List<SkillEntry> hardEntries, List<SkillEntry> softEntries) {
