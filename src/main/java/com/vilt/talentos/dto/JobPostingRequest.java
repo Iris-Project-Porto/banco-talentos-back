@@ -44,5 +44,7 @@ public record JobPostingRequest(
 
         Boolean isUrgent,
 
-        List<JobPostingSkillRequest> skills
+        List<JobPostingSkillRequest> skills,
+
+        List<UUID> selectedCandidateIds
 ) {}

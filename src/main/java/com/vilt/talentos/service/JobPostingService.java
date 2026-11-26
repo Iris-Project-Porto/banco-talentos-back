@@ -47,39 +47,15 @@ public class JobPostingService {
     private final JobPostingRepository jobPostingRepository;
 
     public Page<JobPostingResponse> findAllActive(JobPostingFilterRequest filters, Pageable pageable) {
-        // determina que Vagas ativas são apenas OPEN, SCREENING ou ALLOCATING
-        Specification<JobPosting> spec = (root, query, cb) -> root.get("status").in(
-                JobPostingStatus.OPEN,
-                JobPostingStatus.SCREENING,
-                JobPostingStatus.ALLOCATING);
-
-        Page<JobPostingResponse> page = jobPostingRepository.findAll(spec, pageable)
+        Specification<JobPosting> spec = JobPostingSpecification.withFilters(true, filters);
+        return jobPostingRepository.findAll(spec, pageable)
                 .map(mapper::toResponse);
-
-        if (page.isEmpty()) {
-            log.warn("Busca por vagas ativas retornou vazia.");
-            throw new ResourceNotFoundException("Nenhuma vaga ativa encontrada");
-        }
-
-        return page;
     }
 
     public Page<JobPostingResponse> findAllInactive(JobPostingFilterRequest filters, Pageable pageable) {
-        // vagas inativas são apenas FILLED, CLOSED ou CANCELLED
-        Specification<JobPosting> spec = (root, query, cb) -> root.get("status").in(
-                JobPostingStatus.FILLED,
-                JobPostingStatus.CLOSED,
-                JobPostingStatus.CANCELLED);
-
-        Page<JobPostingResponse> page = jobPostingRepository.findAll(spec, pageable)
+        Specification<JobPosting> spec = JobPostingSpecification.withFilters(false, filters);
+        return jobPostingRepository.findAll(spec, pageable)
                 .map(mapper::toResponse);
-
-        if (page.isEmpty()) {
-            log.warn("Busca por vagas inativas retornou vazia.");
-            throw new ResourceNotFoundException("Nenhuma vaga inativa encontrada");
-        }
-
-        return page;
     }
 
     public JobPostingResponse findById(UUID id) {
@@ -113,6 +89,7 @@ public class JobPostingService {
         jobPosting.setCreatedBy(getCurrentUser());
 
         reconcileSkills(jobPosting, request.skills());
+        reconcileSelectedCandidates(jobPosting, request.selectedCandidateIds());
 
         JobPosting savedJobPosting = jobPostingRepo.save(jobPosting);
         log.info("Vaga criada com sucesso. ID gerado: {}", savedJobPosting.getId());
@@ -163,6 +140,7 @@ public class JobPostingService {
         jobPosting.setUpdatedBy(getCurrentUser());
 
         reconcileSkills(jobPosting, request.skills());
+        reconcileSelectedCandidates(jobPosting, request.selectedCandidateIds());
 
         JobPosting updatedJobPosting = jobPostingRepo.save(jobPosting);
         log.info("Vaga ID: {} atualizada com sucesso.", id);
@@ -210,6 +188,7 @@ public class JobPostingService {
                     .map(this::jobPostingSkillAuditSnapshot)
                     .toList());
         }
+        putIfNotNull(snapshot, "Candidatos selecionados", jobPosting.selectedCandidateIds());
         putIfNotNull(snapshot, "Criado em", jobPosting.createdAt());
         putIfNotNull(snapshot, "Atualizado em", jobPosting.updatedAt());
         putIfNotNull(snapshot, "Criado por", jobPosting.createdBy());
@@ -253,6 +232,16 @@ public class JobPostingService {
                 Map.of("status", updated.getStatus()));
 
         return mapper.toResponse(updated);
+    }
+
+    private void reconcileSelectedCandidates(JobPosting jobPosting, List<UUID> selectedCandidateIds) {
+        if (jobPosting.getSelectedCandidateIds() == null) {
+            jobPosting.setSelectedCandidateIds(new ArrayList<>());
+        }
+        jobPosting.getSelectedCandidateIds().clear();
+        if (selectedCandidateIds != null) {
+            jobPosting.getSelectedCandidateIds().addAll(selectedCandidateIds);
+        }
     }
 
     private void reconcileSkills(JobPosting jobPosting, List<JobPostingSkillRequest> skillRequests) {

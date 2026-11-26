@@ -23,6 +23,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -116,11 +117,13 @@ class JobPostingAllocationServiceTest {
                 new JobPostingAllocationItemRequest(profileId, startDate, "Tech Lead Frontend")
         ));
 
+        jobPosting.setSelectedCandidateIds(new ArrayList<>(List.of(profileId)));
+
         JobPostingResponse filledResponse = new JobPostingResponse(
                 jobPostingId, "VAG-001", "Tech Lead Frontend", project.getName(), project.getId(),
                 squad.getName(), squad.getId(), ExperienceLevel.SENIOR, "Sênior", null,
                 "Ana Recrutadora", 8, JobPostingStatus.FILLED, "REMOTO", null,
-                jobPosting.getOpeningDate(), null, false, true, List.of(), Instant.now(), Instant.now(), "Admin", "Admin Teste"
+                jobPosting.getOpeningDate(), null, false, true, List.of(), List.of(), Instant.now(), Instant.now(), "Admin", "Admin Teste"
         );
 
         when(jobPostingRepo.findById(jobPostingId)).thenReturn(Optional.of(jobPosting));
@@ -141,6 +144,7 @@ class JobPostingAllocationServiceTest {
 
         assertNotNull(response);
         assertEquals(JobPostingStatus.FILLED, jobPosting.getStatus());
+        assertTrue(jobPosting.getSelectedCandidateIds().isEmpty());
         assertEquals(JobPostingStatus.FILLED, response.jobPosting().status());
         assertEquals(1, response.allocations().size());
 

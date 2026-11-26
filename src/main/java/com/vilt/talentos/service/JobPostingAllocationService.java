@@ -58,6 +58,9 @@ public class JobPostingAllocationService {
             savedAllocations.add(saved);
         }
 
+        if (jobPosting.getSelectedCandidateIds() != null) {
+            jobPosting.getSelectedCandidateIds().clear();
+        }
         jobPosting.setStatus(JobPostingStatus.FILLED);
         jobPosting.setUpdatedBy(currentUser);
         JobPosting updatedJobPosting = jobPostingRepo.save(jobPosting);
