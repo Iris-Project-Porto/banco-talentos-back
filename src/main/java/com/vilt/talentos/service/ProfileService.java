@@ -7,6 +7,7 @@ import com.vilt.talentos.dto.ProfileSelfUpdateRequest;
 import com.vilt.talentos.dto.SkillEntry;
 import com.vilt.talentos.entity.*;
 import com.vilt.talentos.exception.BadRequestException;
+import com.vilt.talentos.exception.ConflictException;
 import com.vilt.talentos.exception.ResourceNotFoundException;
 import com.vilt.talentos.mapper.ProfileMapper;
 import com.vilt.talentos.repository.*;
@@ -373,6 +374,11 @@ public class ProfileService {
         if (req.allocationSquadId() != null) {
             Squad squad = squadRepo.findById(req.allocationSquadId())
                     .orElseThrow(() -> new BadRequestException("Squad não encontrada"));
+            Squad currentSquad = profile.getAllocationSquad();
+            if (currentSquad != null && !currentSquad.getId().equals(squad.getId())) {
+                throw new ConflictException("O recurso já está vinculado à squad '"
+                        + currentSquad.getName() + "'. Remova-o da squad atual antes de vinculá-lo a outra.");
+            }
             profile.setAllocationSquad(squad);
         } else {
             profile.setAllocationSquad(null);
@@ -438,9 +444,7 @@ public class ProfileService {
             boolean registrationStatusChanged) {
         boolean deallocated = wasAllocatedToProject && profile.getAllocationProject() == null;
         if (deallocated) {
-            if (allocationRepo != null && profile.getId() != null) {
-                allocationRepo.deactivateByProfileId(profile.getId());
-            }
+            allocationRepo.deactivateByProfileId(profile.getId());
             profile.setRegistrationStatus(RegistrationStatus.NOT_REQUIRED);
             profile.setRegistrationNumber(null);
             profile.setRegistrationRequestedAt(null);
@@ -459,9 +463,7 @@ public class ProfileService {
         }
 
         if (wasAllocatedToSquad && profile.getAllocationSquad() == null) {
-            boolean hasActiveAllocation = allocationRepo != null
-                    && profile.getId() != null
-                    && allocationRepo.existsByProfileIdAndActiveTrue(profile.getId());
+            boolean hasActiveAllocation = allocationRepo.existsByProfileIdAndActiveTrue(profile.getId());
             if (!hasActiveAllocation) {
                 resetAllocationStatusLabel(profile);
             }
@@ -474,10 +476,7 @@ public class ProfileService {
         }
 
         ResourceStatus next = ResourceStatus.fromRegistrationStatus(profile.getRegistrationStatus());
-        if (next == ResourceStatus.AVAILABLE
-                && allocationRepo != null
-                && profile.getId() != null
-                && allocationRepo.existsByProfileIdAndActiveTrue(profile.getId())) {
+        if (next == ResourceStatus.AVAILABLE && allocationRepo.existsByProfileIdAndActiveTrue(profile.getId())) {
             next = ResourceStatus.ALLOCATED;
         }
         profile.setResourceStatus(next);

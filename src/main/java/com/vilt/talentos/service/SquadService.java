@@ -5,6 +5,7 @@ import com.vilt.talentos.dto.SquadResponse;
 import com.vilt.talentos.dto.SquadResourceInput;
 import com.vilt.talentos.dto.SquadResourceResponse;
 import com.vilt.talentos.entity.*;
+import com.vilt.talentos.exception.ConflictException;
 import com.vilt.talentos.exception.ResourceNotFoundException;
 import com.vilt.talentos.exception.UnauthorizedException;
 import com.vilt.talentos.mapper.SquadMapper;
@@ -18,8 +19,8 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.LinkedHashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -175,18 +176,28 @@ public class SquadService {
         }
 
         List<UUID> targetIds = recursos != null
-                ? recursos.stream().map(SquadResourceInput::id).filter(Objects::nonNull).toList()
-                : recursoIds == null ? List.of() : recursoIds;
+                ? recursos.stream().map(SquadResourceInput::id).filter(Objects::nonNull).distinct().toList()
+                : recursoIds.stream().distinct().toList();
+        List<Profile> profilesToAssign = targetIds.isEmpty()
+                ? List.of()
+                : profileRepo.findAllById(targetIds);
+        if (profilesToAssign.size() != targetIds.size()) {
+            HashSet<UUID> foundIds = profilesToAssign.stream()
+                    .map(Profile::getId)
+                    .collect(Collectors.toCollection(HashSet::new));
+            UUID missingId = targetIds.stream().filter(id -> !foundIds.contains(id)).findFirst().orElseThrow();
+            throw new ResourceNotFoundException("Recurso não encontrado: " + missingId);
+        }
+        validateSquadAssignments(squad, profilesToAssign);
+
         List<Profile> currentProfiles = profileRepo.findAllByAllocationSquadId(squad.getId());
         var targetIdSet = new HashSet<>(targetIds);
         Map<UUID, Profile> profilesToSave = new LinkedHashMap<>();
 
-        if (allocationRepo != null) {
-            if (targetIds == null || targetIds.isEmpty()) {
-                allocationRepo.deactivateBySquadId(squad.getId());
-            } else {
-                allocationRepo.deactivateBySquadIdAndProfileIdNotIn(squad.getId(), targetIds);
-            }
+        if (targetIds.isEmpty()) {
+            allocationRepo.deactivateBySquadId(squad.getId());
+        } else {
+            allocationRepo.deactivateBySquadIdAndProfileIdNotIn(squad.getId(), targetIds);
         }
 
         for (Profile profile : currentProfiles) {
@@ -199,15 +210,14 @@ public class SquadService {
             }
         }
 
-        if (!targetIds.isEmpty()) {
-            List<Profile> profiles = profileRepo.findAllById(targetIds);
+        if (!profilesToAssign.isEmpty()) {
             Map<UUID, String> jobTitleMap = recursos == null
                     ? Map.of()
                     : recursos.stream()
                             .filter(r -> r.id() != null && r.jobTitle() != null)
                             .collect(Collectors.toMap(SquadResourceInput::id, SquadResourceInput::jobTitle, (a, b) -> b));
 
-            for (Profile profile : profiles) {
+            for (Profile profile : profilesToAssign) {
                 Map<String, Object> oldProfile = profileAuditSnapshot(profile);
                 profile.setAllocationSquad(squad);
                 profile.setResourceStatus(ResourceStatus.ALLOCATED);
@@ -225,10 +235,19 @@ public class SquadService {
         }
     }
 
+    private void validateSquadAssignments(Squad squad, List<Profile> profiles) {
+        for (Profile profile : profiles) {
+            Squad currentSquad = profile.getAllocationSquad();
+            if (currentSquad != null && !currentSquad.getId().equals(squad.getId())) {
+                String resourceName = profile.getUser() != null ? profile.getUser().getName() : profile.getId().toString();
+                throw new ConflictException("O recurso '" + resourceName + "' já está vinculado à squad '"
+                        + currentSquad.getName() + "'. Remova-o da squad atual antes de vinculá-lo a outra.");
+            }
+        }
+    }
+
     private void updateResourceStatus(Profile profile) {
-        boolean hasActiveAllocation = allocationRepo != null
-                && profile.getId() != null
-                && allocationRepo.existsByProfileIdAndActiveTrue(profile.getId());
+        boolean hasActiveAllocation = allocationRepo.existsByProfileIdAndActiveTrue(profile.getId());
         boolean allocatedElsewhere = profile.getAllocationProject() != null || hasActiveAllocation;
         profile.setResourceStatus(allocatedElsewhere ? ResourceStatus.ALLOCATED : ResourceStatus.AVAILABLE);
         if (!allocatedElsewhere && FULLY_ALLOCATED_STATUS.equalsIgnoreCase(profile.getAllocationStatus())) {
@@ -301,9 +320,7 @@ public class SquadService {
                     log.warn("Falha ao deletar: Squad ID '{}' não encontrada.", id);
                     return new ResourceNotFoundException("Squad não encontrada");
                 });
-        if (allocationRepo != null) {
-            allocationRepo.deactivateBySquadId(id);
-        }
+        allocationRepo.deactivateBySquadId(id);
         Map<String, Object> oldValue = squadAuditSnapshot(squad);
         List<Profile> profiles = profileRepo.findAllByAllocationSquadId(id);
         for (Profile profile : profiles) {
