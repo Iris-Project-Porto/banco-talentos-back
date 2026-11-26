@@ -351,7 +351,7 @@ class JobPostingAllocationServiceTest {
                 .id(profileId)
                 .user(User.builder().name("Carlos").build())
                 .status(DomainStatus.ACTIVE)
-                .resourceStatus(ResourceStatus.AVAILABLE)
+                .resourceStatus(ResourceStatus.ALLOCATED)
                 .allocationSquad(otherSquad)
                 .build();
 
@@ -362,7 +362,6 @@ class JobPostingAllocationServiceTest {
         when(jobPostingRepo.findById(jobPostingId)).thenReturn(Optional.of(jobPosting));
         when(userRepo.findById(adminUserId)).thenReturn(Optional.of(adminUser));
         when(profileRepo.findById(profileId)).thenReturn(Optional.of(profile));
-        when(allocationRepo.existsByProfileIdAndActiveTrue(profileId)).thenReturn(false);
 
         ConflictException ex = assertThrows(ConflictException.class, () -> allocationService.allocate(jobPostingId, request));
         assertTrue(ex.getMessage().contains("Squad Pagamentos"));

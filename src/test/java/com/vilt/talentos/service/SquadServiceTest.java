@@ -9,6 +9,7 @@ import com.vilt.talentos.entity.Project;
 import com.vilt.talentos.entity.ResourceStatus;
 import com.vilt.talentos.entity.Squad;
 import com.vilt.talentos.entity.User;
+import com.vilt.talentos.exception.ConflictException;
 import com.vilt.talentos.exception.ResourceNotFoundException;
 import com.vilt.talentos.mapper.SquadMapper;
 import com.vilt.talentos.repository.JobPostingAllocationRepository;
@@ -168,7 +169,6 @@ class SquadServiceTest {
         SquadResponse response = squadService.create(request);
 
         assertNotNull(response);
-        verify(profileRepo, never()).clearAllocationSquad(squadId);
         verify(profileRepo, never()).findAllById(any());
         verify(profileRepo, never()).saveAll(any());
     }
@@ -206,11 +206,57 @@ class SquadServiceTest {
         assertEquals("Squad Atualizada", response.name());
 
         verify(mapper).updateEntity(request, existingSquad);
-        verify(profileRepo, atLeastOnce()).findAllByAllocationSquadId(squadId);
         verify(profileRepo).findAllById(recursoIds);
         assertEquals(existingSquad, profile.getAllocationSquad());
         assertEquals(ResourceStatus.ALLOCATED, profile.getResourceStatus());
         verify(profileRepo).saveAll(profiles);
+    }
+
+    @Test
+    @DisplayName("Deve rejeitar recurso que já pertence a outra squad")
+    void update_ThrowsConflict_WhenResourceBelongsToAnotherSquad() {
+        UUID squadId = UUID.randomUUID();
+        UUID profileId = UUID.randomUUID();
+        Squad targetSquad = Squad.builder().id(squadId).name("Squad Destino").build();
+        Squad currentSquad = Squad.builder().id(UUID.randomUUID()).name("Squad Atual").build();
+        Profile profile = Profile.builder()
+                .id(profileId)
+                .allocationSquad(currentSquad)
+                .build();
+        SquadRequest request = new SquadRequest(
+                "Squad Destino", "Desc", "Coord", "GP", List.of(profileId));
+
+        when(squadRepo.findById(squadId)).thenReturn(Optional.of(targetSquad));
+        when(userRepo.findById(userId)).thenReturn(Optional.of(mockUser));
+        when(squadRepo.save(any(Squad.class))).thenReturn(targetSquad);
+        when(profileRepo.findAllById(List.of(profileId))).thenReturn(List.of(profile));
+
+        ConflictException exception = assertThrows(
+                ConflictException.class,
+                () -> squadService.update(squadId, request));
+
+        assertTrue(exception.getMessage().contains("Squad Atual"));
+        assertEquals(currentSquad, profile.getAllocationSquad());
+        verify(allocationRepo, never()).deactivateBySquadIdAndProfileIdNotIn(any(), any());
+        verify(profileRepo, never()).saveAll(any());
+    }
+
+    @Test
+    @DisplayName("Deve rejeitar IDs de recursos inexistentes ao atualizar uma squad")
+    void update_ThrowsNotFound_WhenResourceDoesNotExist() {
+        UUID squadId = UUID.randomUUID();
+        UUID missingProfileId = UUID.randomUUID();
+        Squad squad = Squad.builder().id(squadId).name("Squad").build();
+        SquadRequest request = new SquadRequest("Squad", "Desc", "Coord", "GP", List.of(missingProfileId));
+
+        when(squadRepo.findById(squadId)).thenReturn(Optional.of(squad));
+        when(userRepo.findById(userId)).thenReturn(Optional.of(mockUser));
+        when(squadRepo.save(any(Squad.class))).thenReturn(squad);
+        when(profileRepo.findAllById(List.of(missingProfileId))).thenReturn(List.of());
+
+        assertThrows(ResourceNotFoundException.class, () -> squadService.update(squadId, request));
+        verify(allocationRepo, never()).deactivateBySquadIdAndProfileIdNotIn(any(), any());
+        verify(profileRepo, never()).saveAll(any());
     }
 
     @Test
@@ -247,36 +293,6 @@ class SquadServiceTest {
     }
 
     @Test
-    @DisplayName("Deve manter ALLOCATED quando o recurso removido ainda possui alocação em projeto")
-    void update_RemovesSquadButKeepsStatusWhenProjectAllocationRemains() {
-        UUID squadId = UUID.randomUUID();
-        UUID profileId = UUID.randomUUID();
-        Squad existingSquad = Squad.builder().id(squadId).name("Squad").build();
-        Profile profile = Profile.builder()
-                .id(profileId)
-                .allocationSquad(existingSquad)
-                .allocationProject(Project.builder().id(UUID.randomUUID()).name("Projeto").build())
-                .resourceStatus(ResourceStatus.ALLOCATED)
-                .build();
-        SquadRequest request = new SquadRequest("Squad", "Desc", "Coord", "GP", List.of());
-        SquadResponse expectedResponse = new SquadResponse(
-                squadId, "Squad", "Desc", "Coord", "GP", null, null, true, Instant.now(), null, "Admin User", null
-        );
-
-        when(squadRepo.findById(squadId)).thenReturn(Optional.of(existingSquad));
-        when(userRepo.findById(userId)).thenReturn(Optional.of(mockUser));
-        when(squadRepo.save(any(Squad.class))).thenReturn(existingSquad);
-        when(profileRepo.findAllByAllocationSquadId(squadId))
-                .thenAnswer(invocation -> profile.getAllocationSquad() == null ? List.of() : List.of(profile));
-        when(mapper.toResponse(existingSquad)).thenReturn(expectedResponse);
-
-        squadService.update(squadId, request);
-
-        assertNull(profile.getAllocationSquad());
-        assertEquals(ResourceStatus.ALLOCATED, profile.getResourceStatus());
-    }
-
-    @Test
     @DisplayName("Deve lançar ResourceNotFoundException ao tentar atualizar squad inexistente")
     void update_NotFound() {
         UUID squadId = UUID.randomUUID();
@@ -286,7 +302,6 @@ class SquadServiceTest {
 
         assertThrows(ResourceNotFoundException.class, () -> squadService.update(squadId, request));
         verify(squadRepo, never()).save(any());
-        verify(profileRepo, never()).clearAllocationSquad(any());
     }
 
     @Test
@@ -383,4 +398,3 @@ class SquadServiceTest {
         verify(profileRepo).saveAll(profiles);
     }
 }
-
