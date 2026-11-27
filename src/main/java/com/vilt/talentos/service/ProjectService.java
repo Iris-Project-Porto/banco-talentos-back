@@ -2,6 +2,7 @@ package com.vilt.talentos.service;
 
 import com.vilt.talentos.dto.ProjectRequest;
 import com.vilt.talentos.dto.ProjectResponse;
+import com.vilt.talentos.dto.SquadResponse;
 import com.vilt.talentos.entity.AuditOperation;
 import com.vilt.talentos.entity.Project;
 import com.vilt.talentos.entity.Squad;
@@ -53,7 +54,7 @@ public class ProjectService {
             log.warn("Busca por projetos ativos retornou vazia.");
             throw new ResourceNotFoundException("Nenhum projeto ativo encontrado");
         }
-        return page;
+        return withMemberCounts(page);
     }
 
     public Page<ProjectResponse> findAllInactive(Pageable pageable) {
@@ -63,16 +64,47 @@ public class ProjectService {
             log.warn("Busca por projetos inativos retornou vazia.");
             throw new ResourceNotFoundException("Nenhum projeto inativo encontrado");
         }
-        return page;
+        return withMemberCounts(page);
     }
 
     public ProjectResponse findById(UUID id) {
         return projectRepo.findWithSquadsById(id)
-                .map(p -> mapper.toResponse(p, squadMapper))
+                .map(p -> withMemberCounts(mapper.toResponse(p, squadMapper)))
                 .orElseThrow(() -> {
                     log.warn("Busca falhou: Projeto ID '{}' não encontrado.", id);
                     return new ResourceNotFoundException("Projeto não encontrado");
                 });
+    }
+
+    private Page<ProjectResponse> withMemberCounts(Page<ProjectResponse> page) {
+        List<UUID> squadIds = page.getContent().stream()
+                .filter(project -> project.squads() != null)
+                .flatMap(project -> project.squads().stream())
+                .map(SquadResponse::id)
+                .distinct()
+                .toList();
+        Map<UUID, Long> counts = profileRepo.countMembersBySquadIds(squadIds);
+        return page.map(project -> withMemberCounts(project, counts));
+    }
+
+    private ProjectResponse withMemberCounts(ProjectResponse project) {
+        if (project.squads() == null || project.squads().isEmpty()) {
+            return project;
+        }
+        Map<UUID, Long> counts = profileRepo.countMembersBySquadIds(
+                project.squads().stream().map(SquadResponse::id).toList());
+        return withMemberCounts(project, counts);
+    }
+
+    private ProjectResponse withMemberCounts(ProjectResponse project, Map<UUID, Long> counts) {
+        if (project.squads() == null || project.squads().isEmpty()) {
+            return project;
+        }
+        List<SquadResponse> squads = project.squads().stream()
+                .map(squad -> squad.withMembers(counts.getOrDefault(squad.id(), 0L)))
+                .toList();
+        return new ProjectResponse(project.id(), project.name(), project.description(), project.active(),
+                project.createdAt(), project.updatedAt(), project.createdBy(), project.updatedBy(), squads);
     }
 
     @Transactional
@@ -111,7 +143,7 @@ public class ProjectService {
         }
 
         return projectRepo.findWithSquadsById(savedProject.getId())
-                .map(p -> mapper.toResponse(p, squadMapper))
+                .map(p -> withMemberCounts(mapper.toResponse(p, squadMapper)))
                 .orElseThrow();
     }
 
@@ -163,7 +195,7 @@ public class ProjectService {
         }
 
         return projectRepo.findWithSquadsById(updatedProject.getId())
-                .map(p -> mapper.toResponse(p, squadMapper))
+                .map(p -> withMemberCounts(mapper.toResponse(p, squadMapper)))
                 .orElseThrow();
     }
 

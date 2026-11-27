@@ -15,6 +15,8 @@ public interface SquadMapper {
     @Mapping(target = "updatedBy", source = "updatedBy", qualifiedByName = "userToNameOptional")
     @Mapping(target = "recursos", ignore = true)
     @Mapping(target = "withRecursos", ignore = true)
+    @Mapping(target = "members", ignore = true)
+    @Mapping(target = "withMembers", ignore = true)
     SquadResponse toResponse(Squad squad);
 
     @Mapping(target = "id", ignore = true)

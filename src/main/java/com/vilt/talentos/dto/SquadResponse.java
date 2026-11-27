@@ -17,7 +17,8 @@ public record SquadResponse(
     Instant updatedAt,
     String createdBy,
     String updatedBy,
-    List<SquadResourceResponse> recursos
+    List<SquadResourceResponse> recursos,
+    long members
 ) {
     public SquadResponse {
         if (recursos == null) {
@@ -39,14 +40,22 @@ public record SquadResponse(
         String createdBy,
         String updatedBy
     ) {
-        this(id, name, description, portoCoordinator, projectManager, projectName, projectId, active, createdAt, updatedAt, createdBy, updatedBy, List.of());
+        this(id, name, description, portoCoordinator, projectManager, projectName, projectId, active, createdAt, updatedAt, createdBy, updatedBy, List.of(), 0L);
     }
 
     public SquadResponse withRecursos(List<SquadResourceResponse> recursos) {
         return new SquadResponse(
             id, name, description, portoCoordinator, projectManager,
             projectName, projectId, active, createdAt, updatedAt,
-            createdBy, updatedBy, recursos
+            createdBy, updatedBy, recursos, recursos == null ? 0L : recursos.size()
+        );
+    }
+
+    public SquadResponse withMembers(long members) {
+        return new SquadResponse(
+            id, name, description, portoCoordinator, projectManager,
+            projectName, projectId, active, createdAt, updatedAt,
+            createdBy, updatedBy, recursos, members
         );
     }
 }

@@ -113,11 +113,13 @@ class SquadServiceTest {
         when(squadRepo.save(any(Squad.class))).thenReturn(squad);
         when(profileRepo.findAllById(recursoIds)).thenReturn(profiles);
         when(mapper.toResponse(squad)).thenReturn(expectedResponse);
+        when(profileRepo.findAllByAllocationSquadId(squadId)).thenReturn(profiles);
 
         SquadResponse response = squadService.create(request);
 
         assertNotNull(response);
         assertEquals("Alpha Squad", response.name());
+        assertEquals(2, response.members());
 
         verify(profileRepo).findAllById(recursoIds);
         assertEquals(squad, p1.getAllocationSquad());
@@ -199,11 +201,13 @@ class SquadServiceTest {
         when(squadRepo.save(any(Squad.class))).thenReturn(existingSquad);
         when(profileRepo.findAllById(recursoIds)).thenReturn(profiles);
         when(mapper.toResponse(existingSquad)).thenReturn(expectedResponse);
+        when(profileRepo.findAllByAllocationSquadId(squadId)).thenReturn(profiles);
 
         SquadResponse response = squadService.update(squadId, request);
 
         assertNotNull(response);
         assertEquals("Squad Atualizada", response.name());
+        assertEquals(1, response.members());
 
         verify(mapper).updateEntity(request, existingSquad);
         verify(profileRepo).findAllById(recursoIds);
@@ -356,6 +360,8 @@ class SquadServiceTest {
         assertEquals("Squad Detalhe", response.name());
         assertNotNull(response.recursos());
         assertEquals(1, response.recursos().size());
+        assertEquals(1, response.members());
+        verify(profileRepo, never()).countMembersBySquadIds(any());
 
         SquadResourceResponse recursoResp = response.recursos().get(0);
         assertEquals(profileId, recursoResp.id());
