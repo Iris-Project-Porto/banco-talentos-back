@@ -7,6 +7,7 @@ import com.vilt.talentos.dto.ProfileSelfUpdateRequest;
 import com.vilt.talentos.dto.SkillEntry;
 import com.vilt.talentos.entity.*;
 import com.vilt.talentos.exception.BadRequestException;
+import com.vilt.talentos.exception.ConflictException;
 import com.vilt.talentos.exception.ResourceNotFoundException;
 import com.vilt.talentos.mapper.ProfileMapper;
 import com.vilt.talentos.repository.*;
@@ -32,6 +33,9 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 @Slf4j
 public class ProfileService {
+
+    private static final String FULLY_ALLOCATED_STATUS = "Alocado Integral (100%)";
+    private static final String BENCH_STATUS = "Disponível (Bench)";
 
     private final ProfileRepository profileRepo;
     private final SkillRepository skillRepo;
@@ -311,6 +315,7 @@ public class ProfileService {
         List<Map<String, Object>> oldSkills = profileSkillSnapshots(profile);
         DomainStatus oldStatus = profile.getStatus();
         boolean wasAllocatedToProject = profile.getAllocationProject() != null;
+        boolean wasAllocatedToSquad = profile.getAllocationSquad() != null;
         
         if (req.status() != null) {
             try {
@@ -369,12 +374,21 @@ public class ProfileService {
         if (req.allocationSquadId() != null) {
             Squad squad = squadRepo.findById(req.allocationSquadId())
                     .orElseThrow(() -> new BadRequestException("Squad não encontrada"));
+            Squad currentSquad = profile.getAllocationSquad();
+            if (currentSquad != null && !currentSquad.getId().equals(squad.getId())) {
+                throw new ConflictException("O recurso já está vinculado à squad '"
+                        + currentSquad.getName() + "'. Remova-o da squad atual antes de vinculá-lo a outra.");
+            }
             profile.setAllocationSquad(squad);
         } else {
             profile.setAllocationSquad(null);
         }
 
-        applyResourceStatusAutomation(profile, wasAllocatedToProject);
+        applyResourceStatusAutomation(
+                profile,
+                wasAllocatedToProject,
+                wasAllocatedToSquad,
+                req.registrationStatus() != null);
 
         if (req.groupId() != null) {
             UUID oldGroupId = profile.getUser().getGroup() == null
@@ -423,32 +437,57 @@ public class ProfileService {
         return saved;
     }
 
-    private void applyResourceStatusAutomation(Profile profile, boolean wasAllocatedToProject) {
+    private void applyResourceStatusAutomation(
+            Profile profile,
+            boolean wasAllocatedToProject,
+            boolean wasAllocatedToSquad,
+            boolean registrationStatusChanged) {
         boolean deallocated = wasAllocatedToProject && profile.getAllocationProject() == null;
         if (deallocated) {
-            if (allocationRepo != null && profile.getId() != null) {
-                allocationRepo.deactivateByProfileId(profile.getId());
-            }
+            allocationRepo.deactivateByProfileId(profile.getId());
             profile.setRegistrationStatus(RegistrationStatus.NOT_REQUIRED);
             profile.setRegistrationNumber(null);
             profile.setRegistrationRequestedAt(null);
             profile.setRegistrationNotes(null);
-            profile.setResourceStatus(ResourceStatus.AVAILABLE);
-            log.info("Perfil {}: desalocado — matrícula resetada para NOT_REQUIRED e status do recurso AVAILABLE.",
+            resetAllocationStatusLabel(profile);
+            profile.setResourceStatus(
+                    profile.getAllocationSquad() != null ? ResourceStatus.ALLOCATED : ResourceStatus.AVAILABLE);
+            log.info("Perfil {}: desalocado — matrícula resetada e status do recurso sincronizado.",
                     profile.getId());
             return;
         }
 
+        if (profile.getAllocationSquad() != null) {
+            profile.setResourceStatus(ResourceStatus.ALLOCATED);
+            return;
+        }
+
+        if (wasAllocatedToSquad && profile.getAllocationSquad() == null) {
+            boolean hasActiveAllocation = allocationRepo.existsByProfileIdAndActiveTrue(profile.getId());
+            if (!hasActiveAllocation) {
+                resetAllocationStatusLabel(profile);
+            }
+            profile.setResourceStatus(hasActiveAllocation ? ResourceStatus.ALLOCATED : ResourceStatus.AVAILABLE);
+            return;
+        }
+
+        if (!registrationStatusChanged) {
+            return;
+        }
+
         ResourceStatus next = ResourceStatus.fromRegistrationStatus(profile.getRegistrationStatus());
-        if (next == ResourceStatus.AVAILABLE
-                && allocationRepo != null
-                && profile.getId() != null
-                && allocationRepo.existsByProfileIdAndActiveTrue(profile.getId())) {
+        if (next == ResourceStatus.AVAILABLE && allocationRepo.existsByProfileIdAndActiveTrue(profile.getId())) {
             next = ResourceStatus.ALLOCATED;
         }
         profile.setResourceStatus(next);
         log.debug("Perfil {}: status do recurso sincronizado para {} a partir da matrícula {}.",
                 profile.getId(), next, profile.getRegistrationStatus());
+    }
+
+    private void resetAllocationStatusLabel(Profile profile) {
+        if (FULLY_ALLOCATED_STATUS.equalsIgnoreCase(profile.getAllocationStatus())) {
+            profile.setAllocationStatus(BENCH_STATUS);
+        }
     }
 
     private void reconcileSkills(Profile profile, List<SkillEntry> hardEntries, List<SkillEntry> softEntries) {

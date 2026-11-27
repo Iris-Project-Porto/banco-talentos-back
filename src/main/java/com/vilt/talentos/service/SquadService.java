@@ -5,6 +5,7 @@ import com.vilt.talentos.dto.SquadResponse;
 import com.vilt.talentos.dto.SquadResourceInput;
 import com.vilt.talentos.dto.SquadResourceResponse;
 import com.vilt.talentos.entity.*;
+import com.vilt.talentos.exception.ConflictException;
 import com.vilt.talentos.exception.ResourceNotFoundException;
 import com.vilt.talentos.exception.UnauthorizedException;
 import com.vilt.talentos.mapper.SquadMapper;
@@ -18,6 +19,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -29,6 +31,9 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 @Slf4j
 public class SquadService {
+
+    private static final String FULLY_ALLOCATED_STATUS = "Alocado Integral (100%)";
+    private static final String BENCH_STATUS = "Disponível (Bench)";
 
     private final SquadRepository squadRepo;
     private final ProfileRepository profileRepo;
@@ -171,70 +176,102 @@ public class SquadService {
         }
 
         List<UUID> targetIds = recursos != null
-                ? recursos.stream().map(SquadResourceInput::id).filter(Objects::nonNull).toList()
-                : recursoIds;
+                ? recursos.stream().map(SquadResourceInput::id).filter(Objects::nonNull).distinct().toList()
+                : recursoIds.stream().distinct().toList();
+        List<Profile> profilesToAssign = targetIds.isEmpty()
+                ? List.of()
+                : profileRepo.findAllById(targetIds);
+        if (profilesToAssign.size() != targetIds.size()) {
+            HashSet<UUID> foundIds = profilesToAssign.stream()
+                    .map(Profile::getId)
+                    .collect(Collectors.toCollection(HashSet::new));
+            UUID missingId = targetIds.stream().filter(id -> !foundIds.contains(id)).findFirst().orElseThrow();
+            throw new ResourceNotFoundException("Recurso não encontrado: " + missingId);
+        }
+        validateSquadAssignments(squad, profilesToAssign);
 
-        if (allocationRepo != null) {
-            if (targetIds == null || targetIds.isEmpty()) {
-                allocationRepo.deactivateBySquadId(squad.getId());
-            } else {
-                allocationRepo.deactivateBySquadIdAndProfileIdNotIn(squad.getId(), targetIds);
+        List<Profile> currentProfiles = profileRepo.findAllByAllocationSquadId(squad.getId());
+        var targetIdSet = new HashSet<>(targetIds);
+        Map<UUID, Profile> profilesToSave = new LinkedHashMap<>();
+
+        if (targetIds.isEmpty()) {
+            allocationRepo.deactivateBySquadId(squad.getId());
+        } else {
+            allocationRepo.deactivateBySquadIdAndProfileIdNotIn(squad.getId(), targetIds);
+        }
+
+        for (Profile profile : currentProfiles) {
+            if (!targetIdSet.contains(profile.getId())) {
+                Map<String, Object> oldProfile = profileAuditSnapshot(profile);
+                profile.setAllocationSquad(null);
+                updateResourceStatus(profile);
+                recordProfileChange(profile, oldProfile);
+                profilesToSave.put(profile.getId(), profile);
             }
         }
 
-        if (recursos != null) {
-            profileRepo.clearAllocationSquad(squad.getId());
-            if (!recursos.isEmpty()) {
-                List<Profile> profiles = profileRepo.findAllById(targetIds);
-                Map<UUID, String> jobTitleMap = recursos.stream()
-                        .filter(r -> r.id() != null && r.jobTitle() != null)
-                        .collect(Collectors.toMap(SquadResourceInput::id, SquadResourceInput::jobTitle, (a, b) -> b));
+        if (!profilesToAssign.isEmpty()) {
+            Map<UUID, String> jobTitleMap = recursos == null
+                    ? Map.of()
+                    : recursos.stream()
+                            .filter(r -> r.id() != null && r.jobTitle() != null)
+                            .collect(Collectors.toMap(SquadResourceInput::id, SquadResourceInput::jobTitle, (a, b) -> b));
 
-                for (Profile p : profiles) {
-                    Map<String, Object> oldProfile = profileAuditSnapshot(p);
-
-                    p.setAllocationSquad(squad);
-                    if (jobTitleMap.containsKey(p.getId())) {
-                        p.setJobTitle(jobTitleMap.get(p.getId()));
-                    }
-
-                    Map<String, Object> newProfile = profileAuditSnapshot(p);
-                    if (!Objects.equals(oldProfile, newProfile)) {
-                        auditLogService.record(AuditOperation.UPDATE, "PROFILE", p.getId(),
-                                p.getUser() != null ? p.getUser().getId() : null,
-                                oldProfile, newProfile);
-                    }
+            for (Profile profile : profilesToAssign) {
+                Map<String, Object> oldProfile = profileAuditSnapshot(profile);
+                profile.setAllocationSquad(squad);
+                profile.setResourceStatus(ResourceStatus.ALLOCATED);
+                if (jobTitleMap.containsKey(profile.getId())) {
+                    profile.setJobTitle(jobTitleMap.get(profile.getId()));
                 }
-                profileRepo.saveAll(profiles);
+
+                recordProfileChange(profile, oldProfile);
+                profilesToSave.put(profile.getId(), profile);
             }
-        } else if (recursoIds != null) {
-            profileRepo.clearAllocationSquad(squad.getId());
-            if (!recursoIds.isEmpty()) {
-                List<Profile> profiles = profileRepo.findAllById(recursoIds);
-                for (Profile p : profiles) {
-                    Map<String, Object> oldProfile = profileAuditSnapshot(p);
+        }
 
-                    p.setAllocationSquad(squad);
+        if (!profilesToSave.isEmpty()) {
+            profileRepo.saveAll(List.copyOf(profilesToSave.values()));
+        }
+    }
 
-                    Map<String, Object> newProfile = profileAuditSnapshot(p);
-                    if (!Objects.equals(oldProfile, newProfile)) {
-                        auditLogService.record(AuditOperation.UPDATE, "PROFILE", p.getId(),
-                                p.getUser() != null ? p.getUser().getId() : null,
-                                oldProfile, newProfile);
-                    }
-                }
-                profileRepo.saveAll(profiles);
+    private void validateSquadAssignments(Squad squad, List<Profile> profiles) {
+        for (Profile profile : profiles) {
+            Squad currentSquad = profile.getAllocationSquad();
+            if (currentSquad != null && !currentSquad.getId().equals(squad.getId())) {
+                String resourceName = profile.getUser() != null ? profile.getUser().getName() : profile.getId().toString();
+                throw new ConflictException("O recurso '" + resourceName + "' já está vinculado à squad '"
+                        + currentSquad.getName() + "'. Remova-o da squad atual antes de vinculá-lo a outra.");
             }
         }
     }
 
-   
+    private void updateResourceStatus(Profile profile) {
+        boolean hasActiveAllocation = allocationRepo.existsByProfileIdAndActiveTrue(profile.getId());
+        boolean allocatedElsewhere = profile.getAllocationProject() != null || hasActiveAllocation;
+        profile.setResourceStatus(allocatedElsewhere ? ResourceStatus.ALLOCATED : ResourceStatus.AVAILABLE);
+        if (!allocatedElsewhere && FULLY_ALLOCATED_STATUS.equalsIgnoreCase(profile.getAllocationStatus())) {
+            profile.setAllocationStatus(BENCH_STATUS);
+        }
+    }
+
+    private void recordProfileChange(Profile profile, Map<String, Object> oldProfile) {
+        Map<String, Object> newProfile = profileAuditSnapshot(profile);
+        if (!Objects.equals(oldProfile, newProfile)) {
+            auditLogService.record(AuditOperation.UPDATE, "PROFILE", profile.getId(),
+                    profile.getUser() != null ? profile.getUser().getId() : null,
+                    oldProfile, newProfile);
+        }
+    }
+
     private Map<String, Object> profileAuditSnapshot(Profile profile) {
         Map<String, Object> snapshot = new LinkedHashMap<>();
         snapshot.put("ID", profile.getId());
         snapshot.put("Cargo", profile.getJobTitle());
         snapshot.put("Squad",
                 profile.getAllocationSquad() != null ? profile.getAllocationSquad().getName() : "Nenhuma");
+        snapshot.put("Status do recurso", profile.getResourceStatus());
+        snapshot.put("Status da alocação", profile.getAllocationStatus());
         return snapshot;
     }
 
@@ -283,11 +320,18 @@ public class SquadService {
                     log.warn("Falha ao deletar: Squad ID '{}' não encontrada.", id);
                     return new ResourceNotFoundException("Squad não encontrada");
                 });
-        if (allocationRepo != null) {
-            allocationRepo.deactivateBySquadId(id);
-        }
+        allocationRepo.deactivateBySquadId(id);
         Map<String, Object> oldValue = squadAuditSnapshot(squad);
-        profileRepo.clearAllocationSquad(id);
+        List<Profile> profiles = profileRepo.findAllByAllocationSquadId(id);
+        for (Profile profile : profiles) {
+            Map<String, Object> oldProfile = profileAuditSnapshot(profile);
+            profile.setAllocationSquad(null);
+            updateResourceStatus(profile);
+            recordProfileChange(profile, oldProfile);
+        }
+        if (!profiles.isEmpty()) {
+            profileRepo.saveAll(profiles);
+        }
         jobPostingRepo.clearSquad(id);
         squadRepo.delete(squad);
         auditLogService.record(

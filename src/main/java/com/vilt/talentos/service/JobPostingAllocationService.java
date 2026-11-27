@@ -152,20 +152,24 @@ public class JobPostingAllocationService {
             throw new ConflictException("O recurso '" + resourceName + "' não está ativo e não pode ser alocado.");
         }
 
-        if (profile.getResourceStatus() == ResourceStatus.ALLOCATED
+        Squad currentSquad = profile.getAllocationSquad();
+        Squad targetSquad = jobPosting.getSquad();
+        boolean alreadyInTargetSquad = currentSquad != null
+                && targetSquad != null
+                && currentSquad.getId().equals(targetSquad.getId());
+
+        if (currentSquad != null && !alreadyInTargetSquad) {
+            throw new ConflictException("O recurso '" + resourceName + "' já está alocado na squad '"
+                    + currentSquad.getName() + "'.");
+        }
+
+        if ((profile.getResourceStatus() == ResourceStatus.ALLOCATED && !alreadyInTargetSquad)
                 || ALLOCATED_STATUS_LABEL.equalsIgnoreCase(profile.getAllocationStatus())) {
             throw new ConflictException("O recurso '" + resourceName + "' já está alocado e indisponível.");
         }
 
         if (allocationRepo.existsByProfileIdAndActiveTrue(profile.getId())) {
             throw new ConflictException("O recurso '" + resourceName + "' já possui uma alocação ativa.");
-        }
-
-        Squad currentSquad = profile.getAllocationSquad();
-        Squad targetSquad = jobPosting.getSquad();
-        if (currentSquad != null && (targetSquad == null || !currentSquad.getId().equals(targetSquad.getId()))) {
-            throw new ConflictException("O recurso '" + resourceName + "' já está alocado na squad '"
-                    + currentSquad.getName() + "'.");
         }
     }
 

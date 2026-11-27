@@ -202,6 +202,36 @@ class JobPostingAllocationServiceTest {
     }
 
     @Test
+    @DisplayName("Deve permitir alocar recurso marcado ALLOCATED por já pertencer à squad da vaga")
+    void allocate_Success_WhenAllocatedOnlyToTargetSquad() {
+        UUID profileId = UUID.randomUUID();
+        Profile profile = Profile.builder()
+                .id(profileId)
+                .user(User.builder().id(UUID.randomUUID()).name("Maria Dev").build())
+                .status(DomainStatus.ACTIVE)
+                .resourceStatus(ResourceStatus.ALLOCATED)
+                .allocationSquad(squad)
+                .build();
+        JobPostingAllocationBatchRequest request = new JobPostingAllocationBatchRequest(
+                profileId, LocalDate.of(2026, 11, 18), "Dev Frontend");
+
+        when(jobPostingRepo.findById(jobPostingId)).thenReturn(Optional.of(jobPosting));
+        when(userRepo.findById(adminUserId)).thenReturn(Optional.of(adminUser));
+        when(profileRepo.findById(profileId)).thenReturn(Optional.of(profile));
+        when(allocationRepo.existsByProfileIdAndActiveTrue(profileId)).thenReturn(false);
+        when(profileRepo.save(any(Profile.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(allocationRepo.save(any(JobPostingAllocation.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(jobPostingRepo.save(any(JobPosting.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(jobPostingMapper.toResponse(jobPosting)).thenReturn(mock(JobPostingResponse.class));
+
+        JobPostingAllocationBatchResponse response = allocationService.allocate(jobPostingId, request);
+
+        assertEquals(1, response.allocations().size());
+        assertEquals(ResourceStatus.ALLOCATED, profile.getResourceStatus());
+        verify(allocationRepo).save(any(JobPostingAllocation.class));
+    }
+
+    @Test
     @DisplayName("Deve lançar ConflictException quando a vaga já estiver FILLED, CLOSED ou CANCELLED")
     void allocate_ThrowsConflict_WhenJobPostingClosedOrFilled() {
         for (JobPostingStatus blocked : List.of(JobPostingStatus.FILLED, JobPostingStatus.CLOSED, JobPostingStatus.CANCELLED)) {
@@ -325,7 +355,7 @@ class JobPostingAllocationServiceTest {
                 .id(profileId)
                 .user(User.builder().name("Carlos").build())
                 .status(DomainStatus.ACTIVE)
-                .resourceStatus(ResourceStatus.AVAILABLE)
+                .resourceStatus(ResourceStatus.ALLOCATED)
                 .allocationSquad(otherSquad)
                 .build();
 
@@ -336,7 +366,6 @@ class JobPostingAllocationServiceTest {
         when(jobPostingRepo.findById(jobPostingId)).thenReturn(Optional.of(jobPosting));
         when(userRepo.findById(adminUserId)).thenReturn(Optional.of(adminUser));
         when(profileRepo.findById(profileId)).thenReturn(Optional.of(profile));
-        when(allocationRepo.existsByProfileIdAndActiveTrue(profileId)).thenReturn(false);
 
         ConflictException ex = assertThrows(ConflictException.class, () -> allocationService.allocate(jobPostingId, request));
         assertTrue(ex.getMessage().contains("Squad Pagamentos"));

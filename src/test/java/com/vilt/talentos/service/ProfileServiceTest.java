@@ -15,9 +15,11 @@ import com.vilt.talentos.entity.RegistrationStatus;
 import com.vilt.talentos.entity.ResourceStatus;
 import com.vilt.talentos.entity.Skill;
 import com.vilt.talentos.entity.SkillType;
+import com.vilt.talentos.entity.Squad;
 import com.vilt.talentos.entity.User;
 import com.vilt.talentos.entity.AuditOperation;
 import com.vilt.talentos.exception.BadRequestException;
+import com.vilt.talentos.exception.ConflictException;
 import com.vilt.talentos.mapper.ProfileMapper;
 import com.vilt.talentos.repository.GroupRepository;
 import com.vilt.talentos.repository.JobPostingAllocationRepository;
@@ -41,6 +43,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
@@ -413,6 +416,59 @@ class ProfileServiceTest {
         assertEquals(RegistrationStatus.NOT_REQUIRED, result.getRegistrationStatus());
         assertEquals(ResourceStatus.AVAILABLE, result.getResourceStatus());
         verify(allocationRepo).deactivateByProfileId(profileId);
+    }
+
+    @Test
+    void adminUpdate_shouldReturnResourceToAvailableWhenRemovingItsSquad() {
+        UUID profileId = UUID.randomUUID();
+        Squad squad = Squad.builder().id(UUID.randomUUID()).name("Squad").build();
+        Profile profile = Profile.builder()
+                .id(profileId)
+                .user(User.builder().email("test@vilt-group.com").build())
+                .status(DomainStatus.ACTIVE)
+                .registrationStatus(RegistrationStatus.NOT_REQUIRED)
+                .resourceStatus(ResourceStatus.ALLOCATED)
+                .allocationSquad(squad)
+                .skills(new java.util.ArrayList<>())
+                .build();
+        AdminUpdateRequest req = AdminUpdateRequest.builder().build();
+
+        when(profileRepo.findById(profileId)).thenReturn(Optional.of(profile));
+        when(profileRepo.save(any(Profile.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        Profile result = profileService.adminUpdate(profileId, req);
+
+        assertNull(result.getAllocationSquad());
+        assertEquals(ResourceStatus.AVAILABLE, result.getResourceStatus());
+    }
+
+    @Test
+    void adminUpdate_shouldRejectAssignmentToAnotherSquadWithoutUnlinkingFirst() {
+        UUID profileId = UUID.randomUUID();
+        Squad currentSquad = Squad.builder().id(UUID.randomUUID()).name("Squad Atual").build();
+        Squad targetSquad = Squad.builder().id(UUID.randomUUID()).name("Squad Destino").build();
+        Profile profile = Profile.builder()
+                .id(profileId)
+                .user(User.builder().email("test@vilt-group.com").build())
+                .status(DomainStatus.ACTIVE)
+                .resourceStatus(ResourceStatus.ALLOCATED)
+                .allocationSquad(currentSquad)
+                .skills(new java.util.ArrayList<>())
+                .build();
+        AdminUpdateRequest req = AdminUpdateRequest.builder()
+                .allocationSquadId(targetSquad.getId())
+                .build();
+
+        when(profileRepo.findById(profileId)).thenReturn(Optional.of(profile));
+        when(squadRepo.findById(targetSquad.getId())).thenReturn(Optional.of(targetSquad));
+
+        ConflictException exception = assertThrows(
+                ConflictException.class,
+                () -> profileService.adminUpdate(profileId, req));
+
+        assertTrue(exception.getMessage().contains("Squad Atual"));
+        assertEquals(currentSquad, profile.getAllocationSquad());
+        verify(profileRepo, never()).save(any(Profile.class));
     }
 
     @Test
