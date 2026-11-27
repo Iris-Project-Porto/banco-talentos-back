@@ -1,6 +1,7 @@
 package com.vilt.talentos.repository;
 
 import com.vilt.talentos.dto.AuditEntityContext;
+import com.vilt.talentos.dto.SquadMemberCount;
 import com.vilt.talentos.entity.DomainStatus;
 import com.vilt.talentos.entity.Profile;
 import org.springframework.data.domain.Page;
@@ -16,8 +17,10 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
 import java.util.List;
 import java.util.Collection;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 public interface ProfileRepository extends JpaRepository<Profile, UUID>, JpaSpecificationExecutor<Profile> {
     @Query("select new com.vilt.talentos.dto.AuditEntityContext(p.id, u.name) "
@@ -63,6 +66,18 @@ public interface ProfileRepository extends JpaRepository<Profile, UUID>, JpaSpec
 
     @EntityGraph(attributePaths = {"user"})
     List<Profile> findAllByAllocationSquadId(UUID squadId);
+
+    @Query("select new com.vilt.talentos.dto.SquadMemberCount(p.allocationSquad.id, count(p.id)) "
+            + "from Profile p where p.allocationSquad.id in :squadIds group by p.allocationSquad.id")
+    List<SquadMemberCount> findSquadMemberCounts(@Param("squadIds") Collection<UUID> squadIds);
+
+    default Map<UUID, Long> countMembersBySquadIds(Collection<UUID> squadIds) {
+        if (squadIds.isEmpty()) {
+            return Map.of();
+        }
+        return findSquadMemberCounts(squadIds).stream()
+                .collect(Collectors.toMap(SquadMemberCount::squadId, SquadMemberCount::members));
+    }
 
     @Modifying
     @Query("update Profile p set p.allocationSquad = null where p.allocationSquad.id = :squadId")

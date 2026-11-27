@@ -5,6 +5,7 @@ import com.vilt.talentos.dto.SquadResponse;
 import com.vilt.talentos.entity.Squad;
 import com.vilt.talentos.entity.User;
 import com.vilt.talentos.mapper.SquadMapper;
+import com.vilt.talentos.repository.JobPostingAllocationRepository;
 import com.vilt.talentos.repository.JobPostingRepository;
 import com.vilt.talentos.repository.ProfileRepository;
 import com.vilt.talentos.repository.SquadRepository;
@@ -36,6 +37,7 @@ class SquadAuditServiceTest {
     @Mock SquadRepository squadRepo;
     @Mock ProfileRepository profileRepo;
     @Mock JobPostingRepository jobPostingRepo;
+    @Mock JobPostingAllocationRepository allocationRepo;
     @Mock UserRepository userRepo;
     @Mock SquadMapper mapper;
     @Mock AuditLogService auditLogService;
@@ -101,6 +103,7 @@ class SquadAuditServiceTest {
 
         service.deleteSquad(id);
 
+        verify(allocationRepo).deactivateBySquadId(id);
         verify(squadRepo).delete(squad);
         verify(auditLogService).record(eq(com.vilt.talentos.entity.AuditOperation.DELETE),
                 eq("SQUAD"), eq(id), any(), isNull());

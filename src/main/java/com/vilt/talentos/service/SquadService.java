@@ -58,7 +58,7 @@ public class SquadService {
             throw new ResourceNotFoundException("Nenhuma squad ativa encontrada.");
         }
 
-        return page;
+        return withMemberCounts(page);
     }
 
     public Page<SquadResponse> findAllInactive(String search, Pageable pageable) {
@@ -76,7 +76,7 @@ public class SquadService {
             throw new ResourceNotFoundException("Nenhuma squad inativa encontrada.");
         }
 
-        return page;
+        return withMemberCounts(page);
     }
 
     public List<SquadResponse> findAllUnlinked() {
@@ -87,7 +87,17 @@ public class SquadService {
                 .toList();
 
         log.info("Total de squads sem vínculo encontradas: {}", result.size());
-        return result;
+        Map<UUID, Long> counts = profileRepo.countMembersBySquadIds(
+                result.stream().map(SquadResponse::id).toList());
+        return result.stream()
+                .map(squad -> squad.withMembers(counts.getOrDefault(squad.id(), 0L)))
+                .toList();
+    }
+
+    private Page<SquadResponse> withMemberCounts(Page<SquadResponse> page) {
+        Map<UUID, Long> counts = profileRepo.countMembersBySquadIds(
+                page.getContent().stream().map(SquadResponse::id).toList());
+        return page.map(squad -> squad.withMembers(counts.getOrDefault(squad.id(), 0L)));
     }
 
     public SquadResponse findById(UUID id) {

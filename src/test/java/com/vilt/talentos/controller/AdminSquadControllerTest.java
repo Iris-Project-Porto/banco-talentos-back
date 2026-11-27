@@ -35,11 +35,13 @@ class AdminSquadControllerTest extends BaseControllerTest {
     @DisplayName("Deve listar squads ativas com sucesso")
     void listActive_Success() throws Exception {
         SquadResponse response = new SquadResponse(UUID.randomUUID(), "Squad 1", "Desc", "Coord", "GP", "Projeto", UUID.randomUUID(), true, Instant.now(), Instant.now(), "admin", "admin");
-        when(squadService.findAllActive(any(), any(Pageable.class))).thenReturn(new PageImpl<>(List.of(response)));
+        when(squadService.findAllActive(any(), any(Pageable.class))).thenReturn(new PageImpl<>(List.of(response.withMembers(3))));
 
         mockMvc.perform(get("/api/v1/admin/squads/active"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.content[0].name").value("Squad 1"));
+                .andExpect(jsonPath("$.content[0].name").value("Squad 1"))
+                .andExpect(jsonPath("$.content[0].members").value(3))
+                .andExpect(jsonPath("$.content[0].recursos").isEmpty());
     }
 
     @Test
